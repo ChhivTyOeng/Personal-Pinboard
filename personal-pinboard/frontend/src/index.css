@@ -1,0 +1,317 @@
+@import '@mantine/core/styles.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-[#FAFAFA] text-slate-800 dark:bg-slate-950 dark:text-slate-100 font-sans antialiased min-h-screen transition-colors duration-200;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Universal Clean Blue Text Selection across all pages (User, Admin, Dashboard, Modals) */
+::selection,
+*::selection {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+::-moz-selection,
+*::-moz-selection {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+/* Custom Pinterest-like masonry columns */
+.masonry-grid {
+  column-count: 2;
+  column-gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .masonry-grid {
+    column-count: 3;
+    column-gap: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .masonry-grid {
+    column-count: 4;
+    column-gap: 1.25rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .masonry-grid {
+    column-count: 5;
+    column-gap: 1.25rem;
+  }
+}
+
+.masonry-item {
+  break-inside: avoid;
+  margin-bottom: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .masonry-item {
+    margin-bottom: 1.25rem;
+  }
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Clean, Modern Minimalist Floating Scrollbars (Zero solid tracks, zero button arrows) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
+}
+
+html.dark * {
+  scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-track-piece {
+  background: transparent !important;
+  border: none !important;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.28);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.55);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+/* Hide Scrollbars on Horizontal Sliders / Chips / Carousels */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Modal, Dropdown & Sidebar Smooth 4px Floating Scrollbar */
+.modal-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
+}
+
+.dark .modal-scrollbar {
+  scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+}
+
+.modal-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.modal-scrollbar::-webkit-scrollbar-track,
+.modal-scrollbar::-webkit-scrollbar-track-piece {
+  background: transparent !important;
+  border: none !important;
+  margin: 8px 0;
+}
+
+.modal-scrollbar::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
+
+.modal-scrollbar::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.modal-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.15s ease;
+}
+
+.dark .modal-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.modal-scrollbar::-webkit-scrollbar-thumb:hover,
+.dark .modal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #e60023;
+}
+
+/* Mantine ScrollArea & Modal Overrides: Transparent Tracks & No Double Scrollbars */
+.mantine-ScrollArea-scrollbar {
+  background: transparent !important;
+}
+
+.mantine-ScrollArea-thumb {
+  background: rgba(148, 163, 184, 0.3) !important;
+  border-radius: 9999px !important;
+}
+
+.dark .mantine-ScrollArea-thumb {
+  background: rgba(148, 163, 184, 0.2) !important;
+}
+
+.mantine-Modal-inner {
+  overflow-y: hidden !important;
+}
+
+/* Floating micro-interactions */
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes floatReverse {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(8px); }
+}
+
+.animate-float {
+  animation: floatSlow 4.5s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: floatReverse 5.5s ease-in-out infinite 1s;
+}
+
+.animate-float-slow {
+  animation: floatSlow 6.5s ease-in-out infinite 0.5s;
+}
+
+/* ===================================================
+   Modern Scroll-Driven Entry & Reveal Animations
+   =================================================== */
+
+@keyframes scrollFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scrollScaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Universal Smooth Scroll Reveal */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1), transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.reveal-on-scroll.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger Delays */
+.delay-100 { transition-delay: 100ms; }
+.delay-200 { transition-delay: 200ms; }
+.delay-300 { transition-delay: 300ms; }
+.delay-400 { transition-delay: 400ms; }
+.delay-500 { transition-delay: 500ms; }
+
+/* Progressive Enhancement: Native CSS View Timeline when supported */
+@media (prefers-reduced-motion: no-preference) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    .scroll-reveal-up {
+      animation: scrollFadeUp auto ease-out forwards;
+      animation-timeline: view();
+      animation-range: entry 10% cover 30%;
+    }
+
+    .scroll-reveal-card {
+      animation: scrollScaleUp auto cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation-timeline: view();
+      animation-range: entry 5% cover 25%;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-on-scroll {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* Absolute final override: Universal clean blue text selection for all pages, elements, and components */
+*,
+*::before,
+*::after,
+::selection,
+*::selection {
+  selection-background-color: #2563eb !important;
+}
+
+::selection,
+*::selection {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+::-moz-selection,
+*::-moz-selection {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}

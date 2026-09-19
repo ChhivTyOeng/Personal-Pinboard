@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg" />
+    <title>Pinboard | Visual Inspiration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Google Identity Services for Official Google Sign-In & 2FA -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('pinboard-theme') || localStorage.getItem('mantine-color-scheme-value');
+          if (t === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-mantine-color-scheme', 'dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.setAttribute('data-mantine-color-scheme', 'light');
+          }
+        } catch(e) {}
+      })();
+    </script>
+    <style>
+      ::-moz-selection, *::-moz-selection {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+      }
+      ::selection, *::selection {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+      }
+      ::-moz-selection, *::-moz-selection {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-C1pYUfGV.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-BgUM5BhI.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-mantine-BgCbYHos.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-icons-Bil5oL2E.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-Bu9W1TiQ.css">
+  </head>
+  <body class="antialiased selection:bg-blue-600 selection:text-white">
+    <div id="root"></div>
+  </body>
+</html>
