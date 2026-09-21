@@ -12,6 +12,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { useSettings } from '../../context/SettingsContext';
 import { validateAuth } from '../../validators/authValidator';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import LegalModal from './LegalModal';
 import GoogleAuthModal from './GoogleAuthModal';
 
@@ -59,29 +60,15 @@ export default function AuthModal({ opened, onClose, initialMode = 'login', redi
   const [legalModal, setLegalModal] = useState({ open: false, tab: 'terms' });
   const [googleAuthOpen, setGoogleAuthOpen] = useState(false);
 
+  // Safe reference-counted body scroll lock
+  useBodyScrollLock(opened);
+
   useEffect(() => {
     setMode(initialMode);
     setShowPassword(false);
     setErrors({});
     setServerError('');
   }, [initialMode, opened]);
-
-  // Lock background scrolling when modal is open so only the form can scroll
-  useEffect(() => {
-    if (opened) {
-      const originalOverflow = document.body.style.overflow;
-      const originalPaddingRight = document.body.style.paddingRight;
-      const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
-      document.body.style.overflow = 'hidden';
-      if (scrollBarWidth > 0) {
-        document.body.style.paddingRight = `${scrollBarWidth}px`;
-      }
-      return () => {
-        document.body.style.overflow = originalOverflow;
-        document.body.style.paddingRight = originalPaddingRight;
-      };
-    }
-  }, [opened]);
 
   const handleToggleMode = (newMode) => {
     if (newMode === 'register' && !registrationAllowed) {
@@ -138,8 +125,6 @@ export default function AuthModal({ opened, onClose, initialMode = 'login', redi
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
         onClick={onClose}
-        onWheel={(e) => e.preventDefault()}
-        onTouchMove={(e) => e.preventDefault()}
       />
 
       {/* Pure Tailwind Mobile Bottom Sheet / Desktop Modal Card */}

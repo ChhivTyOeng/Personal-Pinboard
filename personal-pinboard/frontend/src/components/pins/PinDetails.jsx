@@ -39,6 +39,7 @@ import { toast } from '../../context/ToastContext';
 import { useSettings } from '../../context/SettingsContext';
 import { detectPinTopic } from '../../utils/topicDetector';
 import UiUxDesignerCard from '../common/UiUxDesignerCard';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 
 export default function PinDetails({ pin, onDelete, isModal = false, onClose }) {
   const navigate = useNavigate();
@@ -87,22 +88,8 @@ export default function PinDetails({ pin, onDelete, isModal = false, onClose }) 
     }
   }, [pin.id]);
 
-  // Lock background scrolling when pin details is rendered as a modal
-  useEffect(() => {
-    if (isModal) {
-      const originalOverflow = document.body.style.overflow;
-      const originalPaddingRight = document.body.style.paddingRight;
-      const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
-      document.body.style.overflow = 'hidden';
-      if (scrollBarWidth > 0) {
-        document.body.style.paddingRight = `${scrollBarWidth}px`;
-      }
-      return () => {
-        document.body.style.overflow = originalOverflow;
-        document.body.style.paddingRight = originalPaddingRight;
-      };
-    }
-  }, [isModal]);
+  // Safe reference-counted body scroll lock when rendered as modal
+  useBodyScrollLock(isModal);
 
   const loadComments = async () => {
     try {

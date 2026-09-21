@@ -35,6 +35,7 @@ import {
   IconLogin,
 } from '@tabler/icons-react';
 import { useAuth } from '../hooks/useAuth';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import ThemeToggle from '../components/common/ThemeToggle';
 import AuthModal from '../components/common/AuthModal';
 import LegalModal from '../components/common/LegalModal';
@@ -82,27 +83,57 @@ export default function LandingPage() {
     { id: 'preview', label: 'Live Preview', subtitle: 'Interactive pinboard', icon: IconEye },
   ];
 
+  // Safe reference-counted body scroll lock for preview pin modal & mobile drawer
+  useBodyScrollLock(!!selectedPreviewPin || mobileMenuOpen);
+
+  // Throttled sticky navbar scroll listener (runs at most once per animation frame, 0 forced reflows)
   useEffect(() => {
-    const sections = ['hero', 'what-you-can-save', 'features', 'testimonials', 'preview'];
+    let ticking = false;
 
     const handleScroll = () => {
-      const currentY = window.scrollY;
-      setIsScrolled(currentY > 20);
-
-      // Active Section tracking
-      const scrollPos = currentY + 220;
-      for (let i = sections.length - 1; i >= 0; i--) {
-        const el = document.getElementById(sections[i]);
-        if (el && el.offsetTop <= scrollPos) {
-          setActiveSection(sections[i]);
-          break;
-        }
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          const currentY = window.scrollY;
+          const scrolled = currentY > 20;
+          setIsScrolled((prev) => (prev !== scrolled ? scrolled : prev));
+          ticking = false;
+        });
+        ticking = true;
       }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Zero-reflow active section tracking using IntersectionObserver
+  useEffect(() => {
+    const sections = ['hero', 'what-you-can-save', 'features', 'testimonials', 'preview'];
+    const sectionElements = sections.map((id) => document.getElementById(id)).filter(Boolean);
+
+    if (sectionElements.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntries = entries.filter((e) => e.isIntersecting);
+        if (visibleEntries.length > 0) {
+          const best = visibleEntries.reduce((prev, curr) =>
+            curr.intersectionRatio > prev.intersectionRatio ? curr : prev
+          );
+          if (best.target.id) {
+            setActiveSection((prev) => (prev !== best.target.id ? best.target.id : prev));
+          }
+        }
+      },
+      {
+        rootMargin: '-80px 0px -40% 0px',
+        threshold: [0.1, 0.3, 0.6],
+      }
+    );
+
+    sectionElements.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
   }, []);
 
   // IntersectionObserver for smooth scroll-driven entrance reveals
@@ -118,32 +149,15 @@ export default function LandingPage() {
       },
       {
         rootMargin: '0px 0px -40px 0px',
-        threshold: 0.12,
+        threshold: 0.1,
       }
     );
 
-    const elements = document.querySelectorAll('.reveal-on-scroll');
+    const elements = document.querySelectorAll('.reveal-on-scroll:not(.is-revealed)');
     elements.forEach((el) => observer.observe(el));
 
     return () => observer.disconnect();
   }, [activeSaveTab]);
-
-  // Lock background scrolling when preview pin modal is open
-  useEffect(() => {
-    if (selectedPreviewPin) {
-      const originalOverflow = document.body.style.overflow;
-      const originalPaddingRight = document.body.style.paddingRight;
-      const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
-      document.body.style.overflow = 'hidden';
-      if (scrollBarWidth > 0) {
-        document.body.style.paddingRight = `${scrollBarWidth}px`;
-      }
-      return () => {
-        document.body.style.overflow = originalOverflow;
-        document.body.style.paddingRight = originalPaddingRight;
-      };
-    }
-  }, [selectedPreviewPin]);
 
 
 
@@ -1042,7 +1056,8 @@ export default function LandingPage() {
                         src={card.image}
                         alt={card.title || 'Inspiration pin'}
                         className={`w-full ${card.aspectClass} object-cover transition-transform duration-500 ease-out group-hover:scale-108`}
-                        loading="lazy"
+                        loading="eager"
+                        decoding="async"
                       />
                     </div>
                   ))}
@@ -1059,7 +1074,8 @@ export default function LandingPage() {
                         src={card.image}
                         alt={card.title || 'Inspiration pin'}
                         className={`w-full ${card.aspectClass} object-cover transition-transform duration-500 ease-out group-hover:scale-108`}
-                        loading="lazy"
+                        loading="eager"
+                        decoding="async"
                       />
                     </div>
                   ))}
@@ -1076,7 +1092,8 @@ export default function LandingPage() {
                         src={card.image}
                         alt={card.title || 'Inspiration pin'}
                         className={`w-full ${card.aspectClass} object-cover transition-transform duration-500 ease-out group-hover:scale-108`}
-                        loading="lazy"
+                        loading="eager"
+                        decoding="async"
                       />
                     </div>
                   ))}
@@ -1130,7 +1147,7 @@ export default function LandingPage() {
           </div>
 
           {/* Visual Showcase Card for Selected Category */}
-          <div className="rounded-3xl bg-[#FAFAFA] dark:bg-slate-950 border border-slate-200/90 dark:border-slate-800 overflow-hidden shadow-xs hover:shadow-md grid grid-cols-1 lg:grid-cols-12 max-w-5xl mx-auto transition-all duration-300 reveal-on-scroll delay-200 scroll-reveal-card group">
+          <div className="rounded-3xl bg-[#FAFAFA] dark:bg-slate-950 border border-slate-200/90 dark:border-slate-800 overflow-hidden shadow-xs hover:shadow-md grid grid-cols-1 lg:grid-cols-12 max-w-5xl mx-auto transition-all duration-300 reveal-on-scroll delay-200 group">
             {/* Image Preview */}
             <div className="lg:col-span-7 h-72 sm:h-96 relative overflow-hidden bg-slate-900">
               <img
@@ -1229,7 +1246,7 @@ export default function LandingPage() {
               return (
                 <div
                   key={index}
-                  className={`bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 border border-slate-200/80 dark:border-slate-800 sm:hover:border-brand-300/80 sm:dark:hover:border-brand-700/80 shadow-2xs hover:shadow-md transition-all duration-300 sm:hover:-translate-y-1.5 flex flex-col justify-between group cursor-default reveal-on-scroll scroll-reveal-card ${delayClass}`}
+                  className={`bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 border border-slate-200/80 dark:border-slate-800 sm:hover:border-brand-300/80 sm:dark:hover:border-brand-700/80 shadow-2xs hover:shadow-md transition-all duration-300 sm:hover:-translate-y-1.5 flex flex-col justify-between group cursor-default reveal-on-scroll ${delayClass}`}
                 >
                   <div>
                     <div className="flex items-center justify-between mb-5">
@@ -1567,7 +1584,7 @@ export default function LandingPage() {
               return (
                 <div
                   key={pin.id}
-                  className={`rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-lg hover:border-rose-300/80 dark:hover:border-rose-700/80 transition-all duration-300 hover:-translate-y-2 group overflow-hidden cursor-pointer reveal-on-scroll scroll-reveal-card active:scale-[0.99] ${delayClass}`}
+                  className={`rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-lg hover:border-rose-300/80 dark:hover:border-rose-700/80 transition-all duration-300 hover:-translate-y-2 group overflow-hidden cursor-pointer reveal-on-scroll active:scale-[0.99] ${delayClass}`}
                   onClick={() => setSelectedPreviewPin(pin)}
                 >
                   {/* Pin Image Container */}
@@ -1673,7 +1690,7 @@ export default function LandingPage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[300px] bg-brand-500/5 rounded-full blur-3xl -z-10 pointer-events-none" />
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-3xl p-8 sm:p-14 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-300 relative overflow-hidden reveal-on-scroll scroll-reveal-card">
+          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-3xl p-8 sm:p-14 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-300 relative overflow-hidden reveal-on-scroll">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
               Start Organizing Your World Today
             </h2>
@@ -1808,33 +1825,13 @@ export default function LandingPage() {
         </div>
       </footer>
 
-
-      {/* Smooth Login / Register Popup Modal */}
-      <AuthModal
-        opened={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        initialMode={authModalMode}
-        redirectTo="/pins"
-      />
-
-      {/* Interactive Terms & Privacy Legal Modal */}
-      <LegalModal
-        opened={legalModalOpen}
-        onClose={() => setLegalModalOpen(false)}
-        initialTab={legalModalTab}
-      />
-
-
-
       {/* 10. INTERACTIVE PIN DETAILS POP-UP MODAL (Pure Tailwind CSS) */}
       {selectedPreviewPin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop with scroll prevention */}
+          {/* Backdrop with clean blur */}
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200"
             onClick={() => setSelectedPreviewPin(null)}
-            onWheel={(e) => e.preventDefault()}
-            onTouchMove={(e) => e.preventDefault()}
           />
           {/* Modal Dialog */}
           <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-md border border-slate-200/90 dark:border-slate-800 z-10 overflow-hidden transform transition-all duration-200 animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col">
