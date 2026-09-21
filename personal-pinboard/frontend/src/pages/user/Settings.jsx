@@ -22,7 +22,6 @@ import {
 } from '@tabler/icons-react';
 import PageHeader from '../../components/common/PageHeader';
 import AvatarPicker from '../../components/common/AvatarPicker';
-import FriendShareCircle from '../../components/common/FriendShareCircle';
 import LogoutConfirmModal from '../../components/common/LogoutConfirmModal';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
@@ -209,15 +208,6 @@ export default function Settings() {
             </Button>
           </div>
         </form>
-      </div>
-
-      {/* Friends You Share With (Private Friend Circle - Max 5 Friends) */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-8 shadow-xs">
-        <FriendShareCircle
-          title="Friends You Share With"
-          subtitle="Your private 5-friend creative circle. Click any friend's avatar to visit their real account page."
-          showManagement={true}
-        />
       </div>
 
       {/* Password & Security */}

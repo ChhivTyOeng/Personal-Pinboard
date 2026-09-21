@@ -216,9 +216,9 @@ export default function AvatarPicker({
                 <button
                   type="button"
                   onClick={handleRemove}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-slate-200/90 hover:bg-rose-100 dark:bg-slate-750 dark:hover:bg-rose-950/60 text-slate-700 hover:text-rose-600 dark:text-slate-200 dark:hover:text-rose-400 border border-slate-300/80 dark:border-slate-750 hover:border-rose-300 dark:hover:border-rose-800 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                  className="group inline-flex items-center gap-1.5 h-[30px] px-3.5 rounded-full text-xs font-bold bg-slate-100/90 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-700 dark:text-slate-200 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200/90 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-900/60 transition-all duration-150 cursor-pointer active:scale-95 shadow-2xs"
                 >
-                  <IconTrash size={13} stroke={2.2} />
+                  <IconTrash size={13} stroke={2.2} className="text-slate-400 dark:text-slate-400 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors" />
                   <span>Remove</span>
                 </button>
               )}
@@ -343,9 +343,9 @@ export default function AvatarPicker({
                 <button
                   type="button"
                   onClick={handleRemove}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-slate-200/90 hover:bg-rose-100 dark:bg-slate-750 dark:hover:bg-rose-950/60 text-slate-700 hover:text-rose-600 dark:text-slate-200 dark:hover:text-rose-400 border border-slate-300/80 dark:border-slate-750 hover:border-rose-300 dark:hover:border-rose-800 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                  className="group inline-flex items-center gap-1.5 h-[30px] px-3.5 rounded-full text-xs font-bold bg-slate-100/90 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-700 dark:text-slate-200 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200/90 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-900/60 transition-all duration-150 cursor-pointer active:scale-95 shadow-2xs"
                 >
-                  <IconTrash size={13} stroke={2.2} />
+                  <IconTrash size={13} stroke={2.2} className="text-slate-400 dark:text-slate-400 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors" />
                   <span>Remove</span>
                 </button>
               )}
