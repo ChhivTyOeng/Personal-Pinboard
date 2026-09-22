@@ -14,6 +14,7 @@ import {
   IconFlame,
 } from '@tabler/icons-react';
 import { appStore } from '../../services/store';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 
 const TRENDING_TOPICS = [
   { name: 'Architecture', tag: 'Architecture', icon: '🏛️' },
@@ -42,20 +43,16 @@ export default function GlobalSearchModal({ isOpen, onClose, initialQuery = '' }
 
   const [allPins, setAllPins] = useState([]);
 
+  useBodyScrollLock(isOpen);
+
   useEffect(() => {
     if (isOpen) {
       setQuery(initialQuery);
       setAllPins(appStore.getPins() || []);
-      document.body.style.overflow = 'hidden';
       setTimeout(() => {
         if (inputRef.current) inputRef.current.focus();
       }, 80);
-    } else {
-      document.body.style.overflow = '';
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
   }, [isOpen, initialQuery]);
 
   const saveRecentSearch = (term) => {

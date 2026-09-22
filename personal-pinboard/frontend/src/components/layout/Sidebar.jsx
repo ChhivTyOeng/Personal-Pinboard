@@ -17,6 +17,7 @@ import {
   IconLogout,
 } from '@tabler/icons-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { appStore } from '../../services/store';
 import LogoutConfirmModal from '../common/LogoutConfirmModal';
 import { toast } from '../../context/ToastContext';
@@ -79,17 +80,15 @@ export default function Sidebar({ isOpen, onClose }) {
     document.addEventListener('touchstart', handleOutsideInteraction, { capture: true, passive: true });
     document.addEventListener('keydown', handleKeyDown);
 
-    // Prevent background scrolling while mobile drawer is open
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
     return () => {
       document.removeEventListener('mousedown', handleOutsideInteraction, true);
       document.removeEventListener('touchstart', handleOutsideInteraction, true);
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
     };
   }, [isOpen, onClose]);
+
+  // Safe reference-counted body scroll lock when mobile sidebar is open
+  useBodyScrollLock(isOpen);
 
   const [counts, setCounts] = useState({
     pins: 0,

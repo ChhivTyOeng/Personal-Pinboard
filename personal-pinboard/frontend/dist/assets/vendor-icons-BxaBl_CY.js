@@ -1,4 +1,4 @@
-import{a as e}from"./vendor-react-DmkIv1v7.js";/**
+import{a as e}from"./vendor-react-SeP1xKii.js";/**
  * @license @tabler/icons-react v3.46.0 - MIT
  *
  * This source code is licensed under the MIT license.

@@ -14,6 +14,7 @@ import {
   IconInfoCircle,
 } from '@tabler/icons-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { googleAuthService } from '../../services/googleAuthService';
 import { emailOtpService } from '../../services/emailOtpService';
 import { toast } from '../../context/ToastContext';
@@ -103,16 +104,8 @@ export default function GoogleAuthModal({
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  // Lock background scrolling when modal is open
-  useEffect(() => {
-    if (opened) {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }
-  }, [opened]);
+  // Safe reference-counted body scroll lock
+  useBodyScrollLock(opened);
 
   // Close on Escape
   useEffect(() => {

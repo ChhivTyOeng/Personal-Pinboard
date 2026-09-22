@@ -36,6 +36,7 @@ import {
 } from '@tabler/icons-react';
 import { useAuth } from '../hooks/useAuth';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { forceUnlockBodyScroll } from '../utils/scrollLock';
 import ThemeToggle from '../components/common/ThemeToggle';
 import AuthModal from '../components/common/AuthModal';
 import LegalModal from '../components/common/LegalModal';
@@ -66,10 +67,87 @@ export default function LandingPage() {
 
   const handleConfirmLogout = () => {
     setLogoutConfirmOpen(false);
+    forceUnlockBodyScroll();
     logout();
     navigate('/', { replace: true });
     toast.info('You have logged out successfully.');
   };
+
+  // Modal Close Handlers that keep history stack and body scroll clean
+  const closeAuthModal = () => {
+    setAuthModalOpen(false);
+    forceUnlockBodyScroll();
+    if (window.history.state?.pinboardModal === 'auth') {
+      window.history.back();
+    }
+  };
+
+  const closePreviewPin = () => {
+    setSelectedPreviewPin(null);
+    forceUnlockBodyScroll();
+    if (window.history.state?.pinboardModal === 'previewPin') {
+      window.history.back();
+    }
+  };
+
+  const closeLegalModal = () => {
+    setLegalModalOpen(false);
+    forceUnlockBodyScroll();
+    if (window.history.state?.pinboardModal === 'legal') {
+      window.history.back();
+    }
+  };
+
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
+    forceUnlockBodyScroll();
+    if (window.history.state?.pinboardModal === 'mobileMenu') {
+      window.history.back();
+    }
+  };
+
+  // Synchronize browser history with open modals so clicking browser Back closes modals
+  useEffect(() => {
+    if (authModalOpen) {
+      window.history.pushState({ pinboardModal: 'auth' }, '');
+    }
+  }, [authModalOpen]);
+
+  useEffect(() => {
+    if (selectedPreviewPin) {
+      window.history.pushState({ pinboardModal: 'previewPin' }, '');
+    }
+  }, [selectedPreviewPin]);
+
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      window.history.pushState({ pinboardModal: 'mobileMenu' }, '');
+    }
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (legalModalOpen) {
+      window.history.pushState({ pinboardModal: 'legal' }, '');
+    }
+  }, [legalModalOpen]);
+
+  // Handle browser Back / Forward (popstate)
+  useEffect(() => {
+    const handlePopState = () => {
+      setAuthModalOpen(false);
+      setSelectedPreviewPin(null);
+      setLegalModalOpen(false);
+      setLogoutConfirmOpen(false);
+      setMobileMenuOpen(false);
+      forceUnlockBodyScroll();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      forceUnlockBodyScroll();
+    };
+  }, []);
 
   // Sticky Navbar State & Active Section Tracking
   const [isScrolled, setIsScrolled] = useState(false);
@@ -1831,14 +1909,14 @@ export default function LandingPage() {
           {/* Backdrop with clean blur */}
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200"
-            onClick={() => setSelectedPreviewPin(null)}
+            onClick={closePreviewPin}
           />
           {/* Modal Dialog */}
           <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-md border border-slate-200/90 dark:border-slate-800 z-10 overflow-hidden transform transition-all duration-200 animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col">
             {/* Close Button - Stays fixed at top right */}
             <button
               type="button"
-              onClick={() => setSelectedPreviewPin(null)}
+              onClick={closePreviewPin}
               className="absolute top-3.5 right-3.5 z-20 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors cursor-pointer backdrop-blur-xs shadow-2xs"
               aria-label="Close modal"
             >
@@ -1891,7 +1969,7 @@ export default function LandingPage() {
                     type="button"
                     onClick={() => {
                       const pinId = selectedPreviewPin.id;
-                      setSelectedPreviewPin(null);
+                      closePreviewPin();
                       navigate(`/pins/${pinId}`);
                     }}
                     className="w-full flex items-center justify-center gap-1.5 h-10 px-5 rounded-full bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-2xs hover:shadow-xs active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap group"
@@ -1904,7 +1982,7 @@ export default function LandingPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        setSelectedPreviewPin(null);
+                        closePreviewPin();
                         setAuthModalMode('login');
                         setAuthModalOpen(true);
                       }}
@@ -1915,7 +1993,7 @@ export default function LandingPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        setSelectedPreviewPin(null);
+                        closePreviewPin();
                         setAuthModalMode('register');
                         setAuthModalOpen(true);
                       }}
@@ -1947,20 +2025,23 @@ export default function LandingPage() {
       {/* Global Modals */}
       <AuthModal
         opened={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
+        onClose={closeAuthModal}
         initialMode={authModalMode}
         redirectTo="/pins"
       />
 
       <LegalModal
         opened={legalModalOpen}
-        onClose={() => setLegalModalOpen(false)}
+        onClose={closeLegalModal}
         initialTab={legalModalTab}
       />
 
       <LogoutConfirmModal
         opened={logoutConfirmOpen}
-        onClose={() => setLogoutConfirmOpen(false)}
+        onClose={() => {
+          setLogoutConfirmOpen(false);
+          forceUnlockBodyScroll();
+        }}
         onConfirm={handleConfirmLogout}
       />
     </div>

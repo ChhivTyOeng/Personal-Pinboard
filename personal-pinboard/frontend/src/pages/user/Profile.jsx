@@ -24,6 +24,7 @@ import { userService } from '../../services/userService';
 import { friendService } from '../../services/friendService';
 import { appStore } from '../../services/store';
 import { useAuth } from '../../hooks/useAuth';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { toast } from '../../context/ToastContext';
 
 // 3D Desk Support & Creator Illustration for Top Banner (Adaptive for Light & Dark mode)
@@ -168,32 +169,21 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [isFriendInCircle, setIsFriendInCircle] = useState(false);
 
-  // ENSURE UNRESTRICTED PAGE SCROLLING AT ALL TIMES
-  useEffect(() => {
-    document.body.style.overflow = '';
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, []);
+  // Safe reference-counted body scroll lock when Edit Profile modal is actively open
+  useBodyScrollLock(editModalOpen);
 
-  // Lock body scroll only when Edit Profile modal is actively open
   useEffect(() => {
-    if (editModalOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         setEditModalOpen(false);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.body.style.overflow = '';
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+    if (editModalOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
   }, [editModalOpen]);
 
   const isOwner = currentUser && currentUser.id === targetId;
@@ -888,7 +878,7 @@ export default function Profile() {
               </div>
 
               {/* Action Buttons */}
-              <div className="shrink-0 px-4 sm:px-6 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/98 backdrop-blur-md flex items-center gap-3 sticky bottom-0 z-10">
+              <div className="shrink-0 px-4 sm:px-6 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900 backdrop-blur-md flex items-center gap-3 sticky bottom-0 z-10">
                 <button
                   type="button"
                   onClick={() => setEditModalOpen(false)}

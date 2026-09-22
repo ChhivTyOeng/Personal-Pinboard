@@ -231,6 +231,23 @@ export default function Header({ onToggleSidebar }) {
     } catch (e) {}
   };
 
+  const handleRemoveRecentSearch = (e, termToRemove) => {
+    e.stopPropagation();
+    const updated = recentDesktopSearches.filter((s) => s.toLowerCase() !== termToRemove.toLowerCase());
+    setRecentDesktopSearches(updated);
+    try {
+      localStorage.setItem('pinboard_recent_searches_v2', JSON.stringify(updated));
+    } catch (err) {}
+  };
+
+  const handleClearRecentSearches = (e) => {
+    e.stopPropagation();
+    setRecentDesktopSearches([]);
+    try {
+      localStorage.removeItem('pinboard_recent_searches_v2');
+    } catch (err) {}
+  };
+
   const handleExecuteDesktopSearch = (term) => {
     const finalTerm = term !== undefined ? term : searchTerm;
     if (!finalTerm || !finalTerm.trim()) return;
@@ -263,7 +280,7 @@ export default function Header({ onToggleSidebar }) {
     : [];
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-3 sm:px-6 flex items-center shadow-2xs transition-colors duration-200">
+    <header className="sticky top-0 z-40 h-16 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-3 sm:px-6 flex items-center shadow-2xs transition-colors duration-200">
       <div className="flex items-center justify-between gap-2.5 sm:gap-4 max-w-7xl w-full mx-auto">
 
         {/* Left: Mobile Sidebar Drawer Toggle & Clean Brand Mark */}
@@ -316,52 +333,60 @@ export default function Header({ onToggleSidebar }) {
 
           {/* Desktop Autocomplete Popover */}
           {desktopSearchOpen && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.25)] p-4 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-4 max-h-[420px] overflow-y-auto modal-scrollbar">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.3),0_0_1px_1px_rgba(0,0,0,0.06)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.08)] p-4 sm:p-5 z-50 animate-in fade-in zoom-in-[0.98] duration-150 space-y-4 max-h-[440px] overflow-y-auto modal-scrollbar">
               {desktopTrimmed.length === 0 ? (
                 <>
                   {/* Recent Searches */}
                   {recentDesktopSearches.length > 0 && (
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
                           <IconClock size={13} stroke={2.4} />
                           Recent Searches
                         </span>
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRecentDesktopSearches([]);
-                            localStorage.removeItem('pinboard_recent_searches_v2');
-                          }}
-                          className="text-[11px] font-bold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                          onClick={handleClearRecentSearches}
+                          className="text-[11px] font-semibold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer flex items-center gap-1 hover:underline"
                         >
-                          Clear
+                          <IconTrash size={11} stroke={2} />
+                          <span>Clear all</span>
                         </button>
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap gap-2">
                         {recentDesktopSearches.map((term) => (
-                          <button
+                          <div
                             key={term}
-                            type="button"
                             onClick={() => handleExecuteDesktopSearch(term)}
-                            className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95"
+                            className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 text-xs font-semibold border border-slate-200/60 dark:border-slate-700/60 shadow-2xs hover:shadow-xs transition-all cursor-pointer select-none active:scale-95"
                           >
-                            <IconClock size={11} className="text-slate-400" />
+                            <IconClock size={12} className="text-slate-400 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors" />
                             <span>{term}</span>
-                          </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleRemoveRecentSearch(e, term)}
+                              aria-label={`Remove ${term}`}
+                              className="w-3.5 h-3.5 rounded-full hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-400 hover:text-slate-700 dark:hover:text-white flex items-center justify-center transition-colors ml-0.5"
+                            >
+                              <IconX size={9} stroke={2.8} />
+                            </button>
+                          </div>
                         ))}
                       </div>
                     </div>
                   )}
 
+                  {recentDesktopSearches.length > 0 && (
+                    <div className="h-px bg-slate-100 dark:border-t dark:border-slate-800/80 my-1" />
+                  )}
+
                   {/* Trending Topics */}
-                  <div className="space-y-2">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                  <div className="space-y-2.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
                       <IconFlame size={13} stroke={2.4} className="text-amber-500" />
-                      Trending Ideas
+                      Trending on Pinboard
                     </span>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                       {[
                         { name: 'Architecture', tag: 'Architecture', icon: '🏛️' },
                         { name: 'UI Design', tag: 'UI Design', icon: '🎨' },
@@ -369,14 +394,16 @@ export default function Header({ onToggleSidebar }) {
                         { name: 'Photography', tag: 'Photography', icon: '📸' },
                         { name: 'Modern Art', tag: 'Art', icon: '🖌️' },
                         { name: 'Interior', tag: 'Interior', icon: '🛋️' },
+                        { name: 'Coffee & Cafes', tag: 'Coffee', icon: '☕' },
+                        { name: 'Technology', tag: 'Tech', icon: '💻' },
                       ].map((topic) => (
                         <button
                           key={topic.name}
                           type="button"
                           onClick={() => handleExecuteDesktopSearch(topic.tag)}
-                          className="px-3 py-1 rounded-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 text-slate-800 dark:text-slate-200 hover:bg-rose-50 hover:border-brand-500/50 hover:text-brand-600 dark:hover:bg-rose-950/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95"
+                          className="px-3.5 py-1.5 rounded-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 hover:bg-rose-50/70 dark:hover:bg-rose-950/30 hover:border-brand-500/40 hover:text-brand-600 dark:hover:text-brand-400 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                         >
-                          <span>{topic.icon}</span>
+                          <span className="text-sm">{topic.icon}</span>
                           <span>{topic.name}</span>
                         </button>
                       ))}
@@ -386,22 +413,22 @@ export default function Header({ onToggleSidebar }) {
               ) : (
                 /* Live Matching Pins */
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/90">
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                       Matches for <span className="font-bold text-slate-900 dark:text-white">"{searchTerm}"</span>
                     </span>
                     <button
                       type="button"
                       onClick={() => handleExecuteDesktopSearch()}
-                      className="text-xs font-bold text-brand-600 dark:text-rose-400 hover:underline flex items-center gap-1 cursor-pointer"
+                      className="text-xs font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 cursor-pointer transition-colors group"
                     >
                       <span>View all</span>
-                      <IconArrowRight size={13} />
+                      <IconArrowRight size={13} stroke={2.5} className="group-hover:translate-x-0.5 transition-transform" />
                     </button>
                   </div>
 
                   {desktopMatchingPins.length > 0 ? (
-                    <div className="space-y-1.5 pt-1">
+                    <div className="space-y-1 pt-1">
                       {desktopMatchingPins.map((pin) => (
                         <div
                           key={pin.id}
@@ -410,47 +437,84 @@ export default function Header({ onToggleSidebar }) {
                             setDesktopSearchOpen(false);
                             navigate(`/pins/${pin.id}`);
                           }}
-                          className="p-2 rounded-2xl hover:bg-slate-100/80 dark:hover:bg-slate-800/70 flex items-center gap-3 transition-colors cursor-pointer group"
+                          className="p-2 rounded-2xl hover:bg-slate-100/90 dark:hover:bg-slate-800/80 flex items-center gap-3 transition-colors cursor-pointer group border border-transparent hover:border-slate-200/60 dark:hover:border-slate-700/60"
                         >
                           {pin.image_url ? (
                             <img
                               src={pin.image_url}
                               alt={pin.title || 'Pin'}
-                              className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
+                              className="w-11 h-11 rounded-xl object-cover shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 shrink-0">
-                              <IconPin size={16} />
+                            <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 shrink-0 border border-slate-200/50 dark:border-slate-700/50">
+                              <IconPin size={18} />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-brand-600 dark:group-hover:text-rose-400">
+                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
                               {pin.title || 'Untitled Pin'}
                             </p>
-                            <p className="text-[11px] text-slate-400 truncate">
-                              {pin.category_name || 'Visual Pin'}
-                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {pin.category_name && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 truncate max-w-[140px]">
+                                  {pin.category_name}
+                                </span>
+                              )}
+                              {pin.author?.full_name && (
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                                  by {pin.author.full_name}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <IconArrowRight size={14} className="text-slate-300 dark:text-slate-600 group-hover:text-brand-600 dark:group-hover:text-rose-400 shrink-0" />
+                          <div className="w-7 h-7 rounded-full bg-transparent group-hover:bg-brand-50 dark:group-hover:bg-brand-950/50 flex items-center justify-center text-slate-300 dark:text-slate-600 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors shrink-0">
+                            <IconArrowRight size={14} stroke={2.5} className="group-hover:translate-x-0.5 transition-transform" />
+                          </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="py-6 text-center text-xs text-slate-400">
-                      No instant matches found. Press Enter to search everywhere.
+                    <div className="py-7 px-4 text-center space-y-1.5">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto text-slate-400 mb-2">
+                        <IconSearch size={18} stroke={2} />
+                      </div>
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        No instant matches found for "{searchTerm}"
+                      </p>
+                      <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                        Press Enter to search across all visual pins and boards.
+                      </p>
                     </div>
                   )}
 
                   <button
                     type="button"
                     onClick={() => handleExecuteDesktopSearch()}
-                    className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer mt-2 active:scale-95"
+                    className="w-full py-2.5 px-3 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-98"
                   >
-                    <IconSearch size={13} stroke={2.5} />
-                    <span>Search for "{searchTerm}"</span>
+                    <IconSearch size={14} stroke={2.5} />
+                    <span>Search everywhere for "{searchTerm}"</span>
                   </button>
                 </div>
               )}
+
+              {/* Footer Shortcut Bar */}
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 select-none">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1 font-medium">
+                    <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-mono text-slate-600 dark:text-slate-300 font-semibold shadow-2xs">Enter</kbd>
+                    <span>to search</span>
+                  </span>
+                  <span className="text-slate-300 dark:text-slate-700">•</span>
+                  <span className="flex items-center gap-1 font-medium">
+                    <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-mono text-slate-600 dark:text-slate-300 font-semibold shadow-2xs">Esc</kbd>
+                    <span>to close</span>
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+                  Pinboard Search
+                </span>
+              </div>
             </div>
           )}
         </div>
