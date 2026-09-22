@@ -67,7 +67,7 @@ export default function Favorites() {
         size="72rem"
         radius="2xl"
         padding="lg"
-        centered
+        yOffset="2rem"
         withCloseButton={false}
         overlayProps={{
           backgroundOpacity: 0.65,

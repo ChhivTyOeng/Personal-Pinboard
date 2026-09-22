@@ -14,7 +14,9 @@ import {
   IconPencil,
   IconEdit,
 } from '@tabler/icons-react';
+import { Modal } from '@mantine/core';
 import PinGrid from '../../components/pins/PinGrid';
+import PinDetails from '../../components/pins/PinDetails';
 import BoardCard from '../../components/boards/BoardCard';
 import Loading from '../../components/common/Loading';
 import AvatarPicker from '../../components/common/AvatarPicker';
@@ -150,6 +152,7 @@ export default function Profile() {
   const [activeTab, setActiveTab] = useState(
     tabParam && validTabs.includes(tabParam) ? tabParam : 'created'
   );
+  const [selectedPin, setSelectedPin] = useState(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     first_name: 'Mathew',
@@ -641,6 +644,7 @@ export default function Profile() {
           {activeTab === 'saved' && (
             <PinGrid
               pins={savedPins}
+              onOpenModal={(pin) => setSelectedPin(pin)}
               emptyTitle="No saved ideas yet"
               emptyDescription="Explore feed and click Save on pins to organize your favorite inspiration."
             />
@@ -649,6 +653,7 @@ export default function Profile() {
           {activeTab === 'created' && (
             <PinGrid
               pins={profile.pins || []}
+              onOpenModal={(pin) => setSelectedPin(pin)}
               emptyTitle="No pins published yet"
               emptyDescription="Create a new pin to showcase your aesthetic inspiration here."
             />
@@ -915,6 +920,39 @@ export default function Profile() {
         onClose={() => setLogoutConfirmOpen(false)}
         onConfirm={handleConfirmLogout}
       />
+
+      {/* Smooth Inline Modal for Pin Details */}
+      <Modal
+        opened={!!selectedPin}
+        onClose={() => setSelectedPin(null)}
+        size="72rem"
+        radius="2xl"
+        padding="lg"
+        yOffset="2rem"
+        withCloseButton={false}
+        overlayProps={{
+          backgroundOpacity: 0.65,
+          blur: 4,
+        }}
+        classNames={{
+          content: 'bg-transparent shadow-none',
+          body: 'p-0',
+        }}
+      >
+        {selectedPin && (
+          <div className="relative">
+            <PinDetails
+              pin={selectedPin}
+              isModal={true}
+              onClose={() => setSelectedPin(null)}
+              onDelete={() => {
+                setSelectedPin(null);
+                loadProfile();
+              }}
+            />
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

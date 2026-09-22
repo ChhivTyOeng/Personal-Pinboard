@@ -188,7 +188,7 @@ export default function PinDetails({ pin, onDelete, isModal = false, onClose }) 
   };
 
   return (
-    <div className={`max-w-5xl mx-auto space-y-6 ${isModal ? 'p-1 sm:p-2' : ''}`}>
+    <div className={`max-w-5xl mx-auto space-y-6 ${isModal ? 'p-1 sm:p-2 pb-16' : 'pb-16'}`}>
       {/* Top Navigation Row: Back Button & Category Breadcrumb */}
       <div className="flex items-center justify-between">
         {isModal ? (
@@ -245,7 +245,7 @@ export default function PinDetails({ pin, onDelete, isModal = false, onClose }) 
               radius="xl"
               size="md"
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
+              className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
               aria-label="Close modal"
             >
               <IconX size={18} />
@@ -255,7 +255,7 @@ export default function PinDetails({ pin, onDelete, isModal = false, onClose }) 
       </div>
 
       {/* Main Pin Card Container */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-md overflow-hidden grid grid-cols-1 md:grid-cols-12 max-h-[90vh] md:max-h-none overflow-y-auto modal-scrollbar overscroll-contain">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-md overflow-hidden grid grid-cols-1 md:grid-cols-12">
         {/* Left: High-Res Image Showcase */}
         {pin.is_infographic && pin.infographic_type === 'ui_ux_designer' ? (
           <div className="md:col-span-6 bg-slate-950/95 flex flex-col items-center justify-start p-3 sm:p-5 min-h-[360px] overflow-y-auto max-h-[78vh] modal-scrollbar">

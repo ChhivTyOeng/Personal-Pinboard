@@ -180,7 +180,7 @@ html.dark * {
   background: #e60023;
 }
 
-/* Mantine ScrollArea & Modal Overrides: Transparent Tracks & No Double Scrollbars */
+/* Mantine ScrollArea & Modal Overrides: Transparent Tracks & Smooth Scrollable Modals */
 .mantine-ScrollArea-scrollbar {
   background: transparent !important;
 }
@@ -195,7 +195,29 @@ html.dark * {
 }
 
 .mantine-Modal-inner {
-  overflow-y: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  padding: 1.5rem 0.5rem !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+
+.mantine-Modal-inner::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mantine-Modal-inner::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+}
+
+.mantine-Modal-inner::-webkit-scrollbar-thumb:hover {
+  background: #e60023;
+}
+
+.mantine-Modal-content {
+  margin: auto !important;
+  max-width: 100% !important;
 }
 
 /* Floating micro-interactions */
