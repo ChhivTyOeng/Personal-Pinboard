@@ -25,16 +25,29 @@ dist-ssr/
 *.sln
 *.sw?
 
-# Environment variables
+# Environment variables & secrets
 .env
 .env.*
 *.env
 .env.production
+.env.production.local
 .env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.staging
 .env.local
 .env.*.local
 *.pem
 *.key
+*.cert
+*.crt
+*.pfx
+*.p12
+
+# Coverage
+coverage/
+.nyc_output/
 
 # Preserve .env.example
 !.env.example

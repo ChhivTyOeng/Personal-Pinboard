@@ -12,13 +12,20 @@ node_modules/
 .env.*
 *.env
 .env.local
+.env.*.local
+.env.development
 .env.development.local
+.env.test
 .env.test.local
+.env.production
 .env.production.local
+.env.staging
 *.pem
 *.key
 *.cert
 *.crt
+*.pfx
+*.p12
 # Allow example environment templates
 !.env.example
 !*.env.example
@@ -29,6 +36,8 @@ dist-ssr/
 build/
 out/
 .cache/
+coverage/
+.nyc_output/
 
 # Logs & Debugging
 logs/

@@ -11,21 +11,36 @@ pnpm-debug.log*
 *.env
 .env.local
 .env.*.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
 *.pem
 *.key
 *.cert
 *.crt
+*.pfx
+*.p12
 !.env.example
 !*.env.example
 
-# Build
+# Build & Coverage
 dist/
 dist-ssr/
 build/
+coverage/
+.nyc_output/
 *.local
 
 # Database local storage
+*.sqlite
+*.sqlite3
+*.db
 backend/data/*.json
+personal-pinboard/backend/data/*.json
 data/*.json
 pinboard_db.json
 

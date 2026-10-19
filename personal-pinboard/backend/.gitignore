@@ -1,28 +1,57 @@
+# Node Dependencies
 node_modules/
+
+# Environment Variables & Secrets
 .env
 .env.*
 *.env
 .env.local
 .env.*.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
 *.pem
 *.key
+*.cert
+*.crt
+*.pfx
+*.p12
 !.env.example
 !*.env.example
 
+# Logs & Debug
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Database & Runtime
+*.sqlite
+*.sqlite3
+*.db
 data/*.json
 pinboard_db.json
 
+# User Uploads
 uploads/pins/*
 !uploads/pins/.gitkeep
 uploads/avatars/*
 !uploads/avatars/.gitkeep
 
+# IDE, OS & Workspaces
 *.code-workspace
 .DS_Store
+.DS_Store?
+._*
+[Tt]humbs.db
 .idea/
 .vscode/
+*.suo
+coverage/
+.nyc_output/
