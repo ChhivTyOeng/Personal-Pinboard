@@ -1,84 +1,59 @@
-import mongoose from 'mongoose';
-import { isMongoConnected, getLocalDb, saveLocalDb } from '../config/db.js';
+import { isPostgresConnected, pool, getLocalDb, saveLocalDb } from '../config/db.js';
 
-// Mongoose Schema Definition
-const pinSchema = new mongoose.Schema(
-  {
-    title: { type: String, required: true, trim: true },
-    description: { type: String, default: '' },
-    image_url: { type: String, required: true },
-    destination_url: { type: String, default: '' },
-    user_id: { type: mongoose.Schema.Types.Mixed, required: true },
-    user: {
-      id: mongoose.Schema.Types.Mixed,
-      username: String,
-      full_name: String,
-      avatar_url: String,
-      email: String,
-    },
-    board_id: { type: mongoose.Schema.Types.Mixed, default: null },
-    board_name: { type: String, default: '' },
-    category_id: { type: mongoose.Schema.Types.Mixed, default: null },
-    category: {
-      id: mongoose.Schema.Types.Mixed,
-      name: String,
-      slug: String,
-    },
-    tags: [{ type: String }],
-    type: {
-      type: String,
-      enum: ['image', 'link', 'note', 'idea', 'video'],
-      default: 'image',
-    },
-    is_private: { type: Boolean, default: false },
-    is_hidden: { type: Boolean, default: false },
-    likes_count: { type: Number, default: 0 },
-    liked_by: [{ type: mongoose.Schema.Types.Mixed }],
-    views_count: { type: Number, default: 0 },
-    rating_avg: { type: Number, default: 5.0 },
-    ratings_count: { type: Number, default: 0 },
-    ratings: [
-      {
-        user_id: mongoose.Schema.Types.Mixed,
-        score: Number,
-        created_at: { type: Date, default: Date.now },
-      },
-    ],
-    comments_count: { type: Number, default: 0 },
-  },
-  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
-);
-
-const MongoosePin = mongoose.models.Pin || mongoose.model('Pin', pinSchema);
-
-// Universal Adapter for Pin
 export const Pin = {
-  schema: pinSchema,
-
   async find(params = {}) {
-    if (isMongoConnected) {
-      const mongoQuery = {};
-      if (params.search) {
-        mongoQuery.$or = [
-          { title: { $regex: params.search, $options: 'i' } },
-          { description: { $regex: params.search, $options: 'i' } },
-          { tags: { $in: [new RegExp(params.search, 'i')] } },
-        ];
+    if (isPostgresConnected && pool) {
+      let sql = 'SELECT * FROM pins WHERE 1=1';
+      const sqlParams = [];
+      let paramIdx = 1;
+
+      if (!params.includeHidden) {
+        sql += ' AND is_hidden = false';
       }
-      if (params.categoryId) mongoQuery.category_id = params.categoryId;
-      if (params.boardId) mongoQuery.board_id = params.boardId;
-      if (params.userId) mongoQuery.user_id = params.userId;
-      if (params.type && params.type !== 'all') mongoQuery.type = params.type;
-      if (params.privacy === 'private') mongoQuery.is_private = true;
-      else if (params.privacy === 'public') mongoQuery.is_private = false;
-      if (!params.includeHidden) mongoQuery.is_hidden = { $ne: true };
+      if (params.search) {
+        sql += ` AND (LOWER(title) LIKE $${paramIdx} OR LOWER(description) LIKE $${paramIdx})`;
+        sqlParams.push(`%${params.search.toLowerCase()}%`);
+        paramIdx++;
+      }
+      if (params.categoryId) {
+        sql += ` AND category_id = $${paramIdx++}`;
+        sqlParams.push(Number(params.categoryId));
+      }
+      if (params.boardId || params.board) {
+        sql += ` AND board_id = $${paramIdx++}`;
+        sqlParams.push(Number(params.boardId || params.board));
+      }
+      if (params.userId) {
+        sql += ` AND user_id = $${paramIdx++}`;
+        sqlParams.push(Number(params.userId));
+      }
+      if (params.type && params.type !== 'all') {
+        sql += ` AND LOWER(type) = $${paramIdx++}`;
+        sqlParams.push(params.type.toLowerCase());
+      }
+      if (params.privacy === 'private') {
+        sql += ' AND is_private = true';
+      } else if (params.privacy === 'public') {
+        sql += ' AND is_private = false';
+      }
 
-      let query = MongoosePin.find(mongoQuery);
-      if (params.sort === 'popular') query = query.sort({ likes_count: -1 });
-      else if (params.sort === 'views') query = query.sort({ views_count: -1 });
-      else query = query.sort({ created_at: -1 });
+      if (params.sort === 'popular') {
+        sql += ' ORDER BY likes_count DESC, id DESC';
+      } else if (params.sort === 'views') {
+        sql += ' ORDER BY views_count DESC, id DESC';
+      } else {
+        sql += ' ORDER BY created_at DESC, id DESC';
+      }
 
-      return await query.exec();
+      const res = await pool.query(sql, sqlParams);
+      return res.rows.map((row) => ({
+        ...row,
+        user: typeof row.user_data === 'string' ? JSON.parse(row.user_data) : row.user_data,
+        category: typeof row.category_data === 'string' ? JSON.parse(row.category_data) : row.category_data,
+        tags: typeof row.tags === 'string' ? JSON.parse(row.tags) : row.tags || [],
+        liked_by: typeof row.liked_by === 'string' ? JSON.parse(row.liked_by) : row.liked_by || [],
+        ratings: typeof row.ratings === 'string' ? JSON.parse(row.ratings) : row.ratings || [],
+      }));
     }
 
     const db = getLocalDb();
@@ -122,7 +97,6 @@ export const Pin = {
       result = result.filter((p) => p.liked_by && p.liked_by.some((uid) => String(uid) === String(params.likedByUserId)));
     }
 
-    // Sort
     if (params.sort === 'popular') {
       result.sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0));
     } else if (params.sort === 'views') {
@@ -135,34 +109,83 @@ export const Pin = {
   },
 
   async findById(id) {
-    if (isMongoConnected) {
-      try {
-        return await MongoosePin.findById(id);
-      } catch (e) {
-        return null;
-      }
+    if (isPostgresConnected && pool) {
+      const res = await pool.query('SELECT * FROM pins WHERE id = $1', [Number(id) || id]);
+      if (!res.rows[0]) return null;
+      const row = res.rows[0];
+      return {
+        ...row,
+        user: typeof row.user_data === 'string' ? JSON.parse(row.user_data) : row.user_data,
+        category: typeof row.category_data === 'string' ? JSON.parse(row.category_data) : row.category_data,
+        tags: typeof row.tags === 'string' ? JSON.parse(row.tags) : row.tags || [],
+        liked_by: typeof row.liked_by === 'string' ? JSON.parse(row.liked_by) : row.liked_by || [],
+        ratings: typeof row.ratings === 'string' ? JSON.parse(row.ratings) : row.ratings || [],
+      };
     }
+
     const db = getLocalDb();
-    return db.pins.find((p) => String(p.id) === String(id) || String(p._id) === String(id)) || null;
+    return db.pins.find((p) => String(p.id) === String(id)) || null;
   },
 
   async findOne(query = {}) {
-    if (isMongoConnected) {
-      return MongoosePin.findOne(query);
-    }
     const pins = await this.find(query);
     return pins[0] || null;
   },
 
   async create(data) {
-    if (isMongoConnected) {
-      return MongoosePin.create(data);
+    if (isPostgresConnected && pool) {
+      const sql = `
+        INSERT INTO pins (
+          title, description, image_url, destination_url, user_id, user_data,
+          board_id, board_name, category_id, category_data, tags, type,
+          is_private, is_hidden, likes_count, liked_by, views_count,
+          rating_avg, rating_count, ratings_count, ratings, comments_count, created_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6,
+          $7, $8, $9, $10, $11, $12,
+          $13, $14, $15, $16, $17,
+          $18, $19, $20, $21, $22, NOW()
+        ) RETURNING *
+      `;
+      const params = [
+        data.title,
+        data.description || '',
+        data.image_url,
+        data.destination_url || '',
+        Number(data.user_id) || 2,
+        JSON.stringify(data.user || {}),
+        data.board_id ? Number(data.board_id) : null,
+        data.board_name || '',
+        data.category_id ? Number(data.category_id) : null,
+        JSON.stringify(data.category || {}),
+        JSON.stringify(data.tags || []),
+        data.type || 'image',
+        Boolean(data.is_private),
+        Boolean(data.is_hidden),
+        0,
+        JSON.stringify([]),
+        0,
+        5.0,
+        0,
+        0,
+        JSON.stringify([]),
+        0,
+      ];
+      const res = await pool.query(sql, params);
+      const row = res.rows[0];
+      return {
+        ...row,
+        user: data.user,
+        category: data.category,
+        tags: data.tags || [],
+        liked_by: [],
+      };
     }
+
     const db = getLocalDb();
     const newId = Date.now();
     const newPin = {
       id: newId,
-      _id: String(newId),
       title: data.title,
       description: data.description || '',
       image_url: data.image_url,
@@ -193,12 +216,49 @@ export const Pin = {
     return newPin;
   },
 
-  async findByIdAndUpdate(id, updates = {}, options = { new: true }) {
-    if (isMongoConnected) {
-      return MongoosePin.findByIdAndUpdate(id, updates, options);
+  async findByIdAndUpdate(id, updates = {}) {
+    if (isPostgresConnected && pool) {
+      const keys = Object.keys(updates);
+      if (keys.length === 0) return await this.findById(id);
+
+      const setClauses = [];
+      const params = [];
+      let idx = 1;
+
+      for (const [key, val] of Object.entries(updates)) {
+        if (key === 'user' || key === 'user_data') {
+          setClauses.push(`user_data = $${idx++}`);
+          params.push(JSON.stringify(val));
+        } else if (key === 'category' || key === 'category_data') {
+          setClauses.push(`category_data = $${idx++}`);
+          params.push(JSON.stringify(val));
+        } else if (key === 'tags' || key === 'liked_by' || key === 'ratings') {
+          setClauses.push(`${key} = $${idx++}`);
+          params.push(JSON.stringify(val));
+        } else {
+          setClauses.push(`${key} = $${idx++}`);
+          params.push(val);
+        }
+      }
+
+      params.push(Number(id) || id);
+      const sql = `UPDATE pins SET ${setClauses.join(', ')} WHERE id = $${idx} RETURNING *`;
+      const res = await pool.query(sql, params);
+      if (!res.rows[0]) return null;
+
+      const row = res.rows[0];
+      return {
+        ...row,
+        user: typeof row.user_data === 'string' ? JSON.parse(row.user_data) : row.user_data,
+        category: typeof row.category_data === 'string' ? JSON.parse(row.category_data) : row.category_data,
+        tags: typeof row.tags === 'string' ? JSON.parse(row.tags) : row.tags || [],
+        liked_by: typeof row.liked_by === 'string' ? JSON.parse(row.liked_by) : row.liked_by || [],
+        ratings: typeof row.ratings === 'string' ? JSON.parse(row.ratings) : row.ratings || [],
+      };
     }
+
     const db = getLocalDb();
-    const index = db.pins.findIndex((p) => String(p.id) === String(id) || String(p._id) === String(id));
+    const index = db.pins.findIndex((p) => String(p.id) === String(id));
     if (index === -1) return null;
 
     db.pins[index] = {
@@ -211,11 +271,13 @@ export const Pin = {
   },
 
   async findByIdAndDelete(id) {
-    if (isMongoConnected) {
-      return MongoosePin.findByIdAndDelete(id);
+    if (isPostgresConnected && pool) {
+      const res = await pool.query('DELETE FROM pins WHERE id = $1 RETURNING *', [Number(id) || id]);
+      return res.rows[0] || null;
     }
+
     const db = getLocalDb();
-    const index = db.pins.findIndex((p) => String(p.id) === String(id) || String(p._id) === String(id));
+    const index = db.pins.findIndex((p) => String(p.id) === String(id));
     if (index === -1) return null;
     const deleted = db.pins.splice(index, 1)[0];
     saveLocalDb();
@@ -223,8 +285,12 @@ export const Pin = {
   },
 
   async countDocuments(filter = {}) {
-    if (isMongoConnected) {
-      return MongoosePin.countDocuments(filter);
+    if (isPostgresConnected && pool) {
+      let sql = 'SELECT COUNT(*) FROM pins WHERE 1=1';
+      const params = [];
+      if (filter.is_hidden === false) sql += ' AND is_hidden = false';
+      const res = await pool.query(sql, params);
+      return parseInt(res.rows[0].count, 10);
     }
     const pins = await this.find(filter);
     return pins.length;

@@ -18,9 +18,9 @@ personal-pinboard/
 │   ├── .env                      # VITE_API_URL=http://localhost:5000/api
 │   └── package.json
 │
-├── backend/                      # Node.js + Express + Database (REST API)
+├── backend/                      # Node.js + Express + PostgreSQL (REST API)
 │   ├── config/
-│   │   ├── db.js                 # Connects to MongoDB with fallback local persistent engine
+│   │   ├── db.js                 # PostgreSQL Pool connection with table auto-migration
 │   │   └── seedData.js           # Initial seed data for users, pins, boards, categories
 │   │
 │   ├── models/                   # Database schemas and data models
@@ -64,8 +64,8 @@ personal-pinboard/
 │   │   ├── pins/                 # Uploaded pin images
 │   │   └── avatars/              # Uploaded profile avatars
 │   │
-│   ├── .env                      # PORT=5000, JWT_SECRET, MONGO_URI
-│   ├── package.json              # Express, cors, jsonwebtoken, bcryptjs, multer, mongoose
+│   ├── .env                      # PORT=5000, JWT_SECRET, DATABASE_URL (PostgreSQL)
+│   ├── package.json              # Express, cors, jsonwebtoken, bcryptjs, multer, pg
 │   └── server.js                 # Main Express server entry point
 │
 └── package.json                  # Root runner script

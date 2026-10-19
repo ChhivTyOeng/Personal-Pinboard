@@ -1,40 +1,31 @@
-import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { isMongoConnected, getLocalDb, saveLocalDb } from '../config/db.js';
+import { isPostgresConnected, pool, getLocalDb, saveLocalDb } from '../config/db.js';
 
-// Mongoose Schema Definition
-const userSchema = new mongoose.Schema(
-  {
-    username: { type: String, required: true, unique: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password: { type: String, required: true },
-    full_name: { type: String, default: '' },
-    avatar_url: {
-      type: String,
-      default: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-    },
-    bio: { type: String, default: '' },
-    role: { type: String, enum: ['user', 'admin'], default: 'user' },
-    status: { type: String, enum: ['active', 'suspended'], default: 'active' },
-    pins_count: { type: Number, default: 0 },
-    boards_count: { type: Number, default: 0 },
-    auth_provider: { type: String, default: 'local' },
-    created_at: { type: Date, default: Date.now },
-    last_login: { type: Date, default: Date.now },
-  },
-  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
-);
-
-const MongooseUser = mongoose.models.User || mongoose.model('User', userSchema);
-
-// Universal Adapter for User
 export const User = {
-  schema: userSchema,
-
   async find(filter = {}) {
-    if (isMongoConnected) {
-      return MongooseUser.find(filter);
+    if (isPostgresConnected && pool) {
+      let sql = 'SELECT * FROM users WHERE 1=1';
+      const params = [];
+      let paramIndex = 1;
+
+      if (filter.role) {
+        sql += ` AND role = $${paramIndex++}`;
+        params.push(filter.role);
+      }
+      if (filter.status) {
+        sql += ` AND status = $${paramIndex++}`;
+        params.push(filter.status);
+      }
+      if (filter.search) {
+        sql += ` AND (LOWER(username) LIKE $${paramIndex} OR LOWER(email) LIKE $${paramIndex} OR LOWER(full_name) LIKE $${paramIndex})`;
+        params.push(`%${filter.search.toLowerCase()}%`);
+        paramIndex++;
+      }
+      sql += ' ORDER BY id ASC';
+      const res = await pool.query(sql, params);
+      return res.rows;
     }
+
     const db = getLocalDb();
     let result = [...db.users];
     if (filter.role) {
@@ -56,44 +47,76 @@ export const User = {
   },
 
   async findById(id) {
-    if (isMongoConnected) {
-      try {
-        return await MongooseUser.findById(id);
-      } catch (e) {
-        return null;
-      }
+    if (isPostgresConnected && pool) {
+      const res = await pool.query('SELECT * FROM users WHERE id = $1', [Number(id) || id]);
+      return res.rows[0] || null;
     }
     const db = getLocalDb();
-    return db.users.find((u) => String(u.id) === String(id) || String(u._id) === String(id)) || null;
+    return db.users.find((u) => String(u.id) === String(id)) || null;
   },
 
   async findOne(query = {}) {
-    if (isMongoConnected) {
-      return MongooseUser.findOne(query);
+    if (isPostgresConnected && pool) {
+      if (query.email) {
+        const res = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [query.email]);
+        if (res.rows[0]) return res.rows[0];
+      }
+      if (query.username) {
+        const res = await pool.query('SELECT * FROM users WHERE LOWER(username) = LOWER($1)', [query.username]);
+        if (res.rows[0]) return res.rows[0];
+      }
+      if (query.id) {
+        const res = await pool.query('SELECT * FROM users WHERE id = $1', [Number(query.id) || query.id]);
+        if (res.rows[0]) return res.rows[0];
+      }
+      return null;
     }
+
     const db = getLocalDb();
     return (
       db.users.find((u) => {
-        if (query.email && u.email.toLowerCase() === query.email.toLowerCase()) return true;
-        if (query.username && u.username.toLowerCase() === query.username.toLowerCase()) return true;
+        if (query.email && u.email?.toLowerCase() === query.email?.toLowerCase()) return true;
+        if (query.username && u.username?.toLowerCase() === query.username?.toLowerCase()) return true;
         if (query.id && String(u.id) === String(query.id)) return true;
-        if (query._id && (String(u._id) === String(query._id) || String(u.id) === String(query._id))) return true;
         return false;
       }) || null
     );
   },
 
   async create(data) {
-    if (isMongoConnected) {
-      return MongooseUser.create(data);
+    const hashedPassword = data.password.startsWith('$2')
+      ? data.password
+      : bcrypt.hashSync(data.password, 10);
+
+    if (isPostgresConnected && pool) {
+      const sql = `
+        INSERT INTO users (username, email, password, full_name, avatar_url, bio, role, status, pins_count, boards_count, auth_provider, created_at, last_login)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+        RETURNING *
+      `;
+      const params = [
+        data.username,
+        data.email.toLowerCase(),
+        hashedPassword,
+        data.full_name || data.username,
+        data.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        data.bio || '',
+        data.role || 'user',
+        data.status || 'active',
+        0,
+        0,
+        data.auth_provider || 'local',
+      ];
+      const res = await pool.query(sql, params);
+      return res.rows[0];
     }
+
     const db = getLocalDb();
     const newUser = {
       id: Date.now(),
-      _id: String(Date.now()),
       username: data.username,
       email: data.email.toLowerCase(),
-      password: data.password.startsWith('$2') ? data.password : bcrypt.hashSync(data.password, 10),
+      password: hashedPassword,
       full_name: data.full_name || data.username,
       avatar_url: data.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
       bio: data.bio || '',
@@ -110,12 +133,21 @@ export const User = {
     return newUser;
   },
 
-  async findByIdAndUpdate(id, updates = {}, options = { new: true }) {
-    if (isMongoConnected) {
-      return MongooseUser.findByIdAndUpdate(id, updates, options);
+  async findByIdAndUpdate(id, updates = {}) {
+    if (isPostgresConnected && pool) {
+      const keys = Object.keys(updates);
+      if (keys.length === 0) return await this.findById(id);
+
+      const setClauses = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
+      const params = [...Object.values(updates), Number(id) || id];
+
+      const sql = `UPDATE users SET ${setClauses} WHERE id = $${keys.length + 1} RETURNING *`;
+      const res = await pool.query(sql, params);
+      return res.rows[0] || null;
     }
+
     const db = getLocalDb();
-    const index = db.users.findIndex((u) => String(u.id) === String(id) || String(u._id) === String(id));
+    const index = db.users.findIndex((u) => String(u.id) === String(id));
     if (index === -1) return null;
 
     db.users[index] = {
@@ -128,11 +160,13 @@ export const User = {
   },
 
   async findByIdAndDelete(id) {
-    if (isMongoConnected) {
-      return MongooseUser.findByIdAndDelete(id);
+    if (isPostgresConnected && pool) {
+      const res = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [Number(id) || id]);
+      return res.rows[0] || null;
     }
+
     const db = getLocalDb();
-    const index = db.users.findIndex((u) => String(u.id) === String(id) || String(u._id) === String(id));
+    const index = db.users.findIndex((u) => String(u.id) === String(id));
     if (index === -1) return null;
     const deleted = db.users.splice(index, 1)[0];
     saveLocalDb();
@@ -140,8 +174,15 @@ export const User = {
   },
 
   async countDocuments(filter = {}) {
-    if (isMongoConnected) {
-      return MongooseUser.countDocuments(filter);
+    if (isPostgresConnected && pool) {
+      let sql = 'SELECT COUNT(*) FROM users WHERE 1=1';
+      const params = [];
+      if (filter.status) {
+        sql += ' AND status = $1';
+        params.push(filter.status);
+      }
+      const res = await pool.query(sql, params);
+      return parseInt(res.rows[0].count, 10);
     }
     const users = await this.find(filter);
     return users.length;

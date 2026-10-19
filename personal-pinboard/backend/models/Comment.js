@@ -1,34 +1,28 @@
-import mongoose from 'mongoose';
-import { isMongoConnected, getLocalDb, saveLocalDb } from '../config/db.js';
+import { isPostgresConnected, pool, getLocalDb, saveLocalDb } from '../config/db.js';
 
-// Mongoose Schema Definition
-const commentSchema = new mongoose.Schema(
-  {
-    pin_id: { type: mongoose.Schema.Types.Mixed, required: true },
-    user_id: { type: mongoose.Schema.Types.Mixed, required: true },
-    user: {
-      id: mongoose.Schema.Types.Mixed,
-      username: String,
-      full_name: String,
-      avatar_url: String,
-      email: String,
-    },
-    content: { type: String, required: true, trim: true },
-    rating: { type: Number, min: 1, max: 5, default: null },
-  },
-  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
-);
-
-const MongooseComment = mongoose.models.Comment || mongoose.model('Comment', commentSchema);
-
-// Universal Adapter for Comment
 export const Comment = {
-  schema: commentSchema,
-
   async find(filter = {}) {
-    if (isMongoConnected) {
-      return MongooseComment.find(filter).sort({ created_at: -1 });
+    if (isPostgresConnected && pool) {
+      let sql = 'SELECT * FROM comments WHERE 1=1';
+      const params = [];
+      let idx = 1;
+
+      if (filter.pin_id) {
+        sql += ` AND pin_id = $${idx++}`;
+        params.push(Number(filter.pin_id));
+      }
+      if (filter.user_id) {
+        sql += ` AND user_id = $${idx++}`;
+        params.push(Number(filter.user_id));
+      }
+      sql += ' ORDER BY created_at DESC';
+      const res = await pool.query(sql, params);
+      return res.rows.map((row) => ({
+        ...row,
+        user: typeof row.user_data === 'string' ? JSON.parse(row.user_data) : row.user_data,
+      }));
     }
+
     const db = getLocalDb();
     let result = [...db.comments];
     if (filter.pin_id) {
@@ -42,34 +36,51 @@ export const Comment = {
   },
 
   async findById(id) {
-    if (isMongoConnected) {
-      try {
-        return await MongooseComment.findById(id);
-      } catch (e) {
-        return null;
-      }
+    if (isPostgresConnected && pool) {
+      const res = await pool.query('SELECT * FROM comments WHERE id = $1', [Number(id) || id]);
+      if (!res.rows[0]) return null;
+      const row = res.rows[0];
+      return {
+        ...row,
+        user: typeof row.user_data === 'string' ? JSON.parse(row.user_data) : row.user_data,
+      };
     }
+
     const db = getLocalDb();
-    return db.comments.find((c) => String(c.id) === String(id) || String(c._id) === String(id)) || null;
+    return db.comments.find((c) => String(c.id) === String(id)) || null;
   },
 
   async findOne(query = {}) {
-    if (isMongoConnected) {
-      return MongooseComment.findOne(query);
-    }
     const comments = await this.find(query);
     return comments[0] || null;
   },
 
   async create(data) {
-    if (isMongoConnected) {
-      return MongooseComment.create(data);
+    if (isPostgresConnected && pool) {
+      const sql = `
+        INSERT INTO comments (pin_id, user_id, user_data, content, rating, created_at)
+        VALUES ($1, $2, $3, $4, $5, NOW())
+        RETURNING *
+      `;
+      const params = [
+        Number(data.pin_id),
+        Number(data.user_id) || 2,
+        JSON.stringify(data.user || {}),
+        data.content || data.text || '',
+        data.rating ? Number(data.rating) : null,
+      ];
+      const res = await pool.query(sql, params);
+      const row = res.rows[0];
+      return {
+        ...row,
+        user: data.user,
+      };
     }
+
     const db = getLocalDb();
     const newId = Date.now();
     const newComment = {
       id: newId,
-      _id: String(newId),
       pin_id: data.pin_id,
       user_id: data.user_id,
       user: data.user || null,
@@ -83,12 +94,38 @@ export const Comment = {
     return newComment;
   },
 
-  async findByIdAndUpdate(id, updates = {}, options = { new: true }) {
-    if (isMongoConnected) {
-      return MongooseComment.findByIdAndUpdate(id, updates, options);
+  async findByIdAndUpdate(id, updates = {}) {
+    if (isPostgresConnected && pool) {
+      const keys = Object.keys(updates);
+      if (keys.length === 0) return await this.findById(id);
+
+      const setClauses = [];
+      const params = [];
+      let idx = 1;
+
+      for (const [key, val] of Object.entries(updates)) {
+        if (key === 'user' || key === 'user_data') {
+          setClauses.push(`user_data = $${idx++}`);
+          params.push(JSON.stringify(val));
+        } else {
+          setClauses.push(`${key} = $${idx++}`);
+          params.push(val);
+        }
+      }
+
+      params.push(Number(id) || id);
+      const sql = `UPDATE comments SET ${setClauses.join(', ')} WHERE id = $${idx} RETURNING *`;
+      const res = await pool.query(sql, params);
+      if (!res.rows[0]) return null;
+      const row = res.rows[0];
+      return {
+        ...row,
+        user: typeof row.user_data === 'string' ? JSON.parse(row.user_data) : row.user_data,
+      };
     }
+
     const db = getLocalDb();
-    const index = db.comments.findIndex((c) => String(c.id) === String(id) || String(c._id) === String(id));
+    const index = db.comments.findIndex((c) => String(c.id) === String(id));
     if (index === -1) return null;
 
     db.comments[index] = {
@@ -101,11 +138,13 @@ export const Comment = {
   },
 
   async findByIdAndDelete(id) {
-    if (isMongoConnected) {
-      return MongooseComment.findByIdAndDelete(id);
+    if (isPostgresConnected && pool) {
+      const res = await pool.query('DELETE FROM comments WHERE id = $1 RETURNING *', [Number(id) || id]);
+      return res.rows[0] || null;
     }
+
     const db = getLocalDb();
-    const index = db.comments.findIndex((c) => String(c.id) === String(id) || String(c._id) === String(id));
+    const index = db.comments.findIndex((c) => String(c.id) === String(id));
     if (index === -1) return null;
     const deleted = db.comments.splice(index, 1)[0];
     saveLocalDb();
@@ -113,9 +152,13 @@ export const Comment = {
   },
 
   async deleteMany(filter = {}) {
-    if (isMongoConnected) {
-      return MongooseComment.deleteMany(filter);
+    if (isPostgresConnected && pool) {
+      if (filter.pin_id) {
+        await pool.query('DELETE FROM comments WHERE pin_id = $1', [Number(filter.pin_id)]);
+      }
+      return { acknowledged: true };
     }
+
     const db = getLocalDb();
     if (filter.pin_id) {
       db.comments = db.comments.filter((c) => String(c.pin_id) !== String(filter.pin_id));
@@ -125,8 +168,9 @@ export const Comment = {
   },
 
   async countDocuments(filter = {}) {
-    if (isMongoConnected) {
-      return MongooseComment.countDocuments(filter);
+    if (isPostgresConnected && pool) {
+      const res = await pool.query('SELECT COUNT(*) FROM comments');
+      return parseInt(res.rows[0].count, 10);
     }
     const comments = await this.find(filter);
     return comments.length;

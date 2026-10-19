@@ -1,34 +1,21 @@
-import mongoose from 'mongoose';
-import { isMongoConnected, getLocalDb, saveLocalDb } from '../config/db.js';
+import { isPostgresConnected, pool, getLocalDb, saveLocalDb } from '../config/db.js';
 import { SEED_SETTINGS } from '../config/seedData.js';
 
-// Mongoose Schema Definition
-const settingSchema = new mongoose.Schema(
-  {
-    platform_name: { type: String, default: 'Personal Pinboard' },
-    allow_registration: { type: Boolean, default: true },
-    enable_comments: { type: Boolean, default: true },
-    enable_ratings: { type: Boolean, default: true },
-    require_moderation_threshold: { type: Number, default: 3 },
-    maintenance_mode: { type: Boolean, default: false },
-  },
-  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
-);
-
-const MongooseSetting = mongoose.models.Setting || mongoose.model('Setting', settingSchema);
-
-// Universal Adapter for Setting
 export const Setting = {
-  schema: settingSchema,
-
   async getSettings() {
-    if (isMongoConnected) {
-      let settings = await MongooseSetting.findOne();
-      if (!settings) {
-        settings = await MongooseSetting.create(SEED_SETTINGS);
-      }
-      return settings;
+    if (isPostgresConnected && pool) {
+      const res = await pool.query('SELECT * FROM settings ORDER BY id ASC LIMIT 1');
+      if (res.rows[0]) return res.rows[0];
+
+      // Insert default if empty
+      const insertRes = await pool.query(
+        `INSERT INTO settings (platform_name, allow_registration, enable_comments, enable_ratings, require_moderation_threshold, maintenance_mode)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [SEED_SETTINGS.platform_name, SEED_SETTINGS.allow_registration, SEED_SETTINGS.enable_comments, SEED_SETTINGS.enable_ratings, SEED_SETTINGS.require_moderation_threshold, SEED_SETTINGS.maintenance_mode]
+      );
+      return insertRes.rows[0];
     }
+
     const db = getLocalDb();
     if (!db.settings) {
       db.settings = { ...SEED_SETTINGS };
@@ -38,13 +25,19 @@ export const Setting = {
   },
 
   async updateSettings(data) {
-    if (isMongoConnected) {
-      let settings = await MongooseSetting.findOne();
-      if (!settings) {
-        return await MongooseSetting.create({ ...SEED_SETTINGS, ...data });
-      }
-      return await MongooseSetting.findByIdAndUpdate(settings._id, data, { new: true });
+    if (isPostgresConnected && pool) {
+      const current = await this.getSettings();
+      const keys = Object.keys(data);
+      if (keys.length === 0) return current;
+
+      const setClauses = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
+      const params = [...Object.values(data), current.id];
+
+      const sql = `UPDATE settings SET ${setClauses}, updated_at = NOW() WHERE id = $${keys.length + 1} RETURNING *`;
+      const res = await pool.query(sql, params);
+      return res.rows[0];
     }
+
     const db = getLocalDb();
     db.settings = {
       ...(db.settings || SEED_SETTINGS),

@@ -1,7 +1,7 @@
 {
   "name": "personal-pinboard-backend",
   "version": "1.0.0",
-  "description": "Personal Pinboard REST API Backend",
+  "description": "Personal Pinboard REST API Backend (PostgreSQL + Express)",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -14,8 +14,8 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.9.2",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.13.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"
