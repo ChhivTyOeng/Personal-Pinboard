@@ -98,9 +98,18 @@ const initPostgresTables = async (client) => {
       pins_count INT DEFAULT 0,
       boards_count INT DEFAULT 0,
       auth_provider VARCHAR(50) DEFAULT 'local',
+      reset_password_token VARCHAR(255),
+      reset_password_expires TIMESTAMP,
+      otp_code_hash VARCHAR(255),
+      otp_expires TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token VARCHAR(255);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_expires TIMESTAMP;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_code_hash VARCHAR(255);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expires TIMESTAMP;
 
     CREATE TABLE IF NOT EXISTS categories (
       id SERIAL PRIMARY KEY,

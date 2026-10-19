@@ -168,7 +168,11 @@ export const authService = {
         saveStoredUser(response.data.data.user);
         return response.data.data;
       }
-    } catch (error) {}
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+    }
 
     const email = (typeof profile === 'object' ? profile.email : profile || '').toLowerCase().trim();
     const name = (typeof profile === 'object' ? profile.name : '') || (email ? email.split('@')[0] : 'Google User');
@@ -197,14 +201,18 @@ export const authService = {
   },
 
   // Email OTP Login / Registration
-  async loginWithOtp(email, fullName = '') {
+  async loginWithOtp(email, fullName = '', code = '') {
     try {
-      const response = await api.post('/auth/otp-login', { email, fullName });
+      const response = await api.post('/auth/otp-login', { email, fullName, code });
       if (response?.data?.data) {
         saveStoredUser(response.data.data.user);
         return response.data.data;
       }
-    } catch (error) {}
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+    }
 
     const cleanEmail = (email || '').toLowerCase().trim();
     const username = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
@@ -233,22 +241,14 @@ export const authService = {
 
   // Forgot password
   async forgotPassword(email) {
-    try {
-      const response = await api.post('/auth/forgot-password', { email });
-      return response.data;
-    } catch (error) {
-      return { success: true, message: 'Password reset code generated' };
-    }
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
   },
 
   // Reset password
-  async resetPassword(email, newPassword) {
-    try {
-      const response = await api.post('/auth/reset-password', { email, newPassword });
-      return response.data;
-    } catch (error) {
-      return { success: true, message: 'Password updated successfully' };
-    }
+  async resetPassword(email, code, newPassword) {
+    const response = await api.post('/auth/reset-password', { email, code, newPassword });
+    return response.data;
   },
 };
 

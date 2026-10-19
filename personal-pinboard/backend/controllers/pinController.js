@@ -74,6 +74,13 @@ export const getPinById = async (req, res, next) => {
 // @access  Private
 export const createPin = async (req, res, next) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required to create a pin',
+      });
+    }
+
     const {
       title,
       description,
@@ -86,21 +93,36 @@ export const createPin = async (req, res, next) => {
       is_private,
     } = req.body;
 
-    if (!title || !image_url) {
+    if (!title || !title.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Pin title and image URL are required',
+        message: 'Pin title is required',
       });
     }
 
-    const currentUserId = req.user?.id || req.user?._id || 2;
-    const authorUser = req.user || {
-      id: currentUserId,
-      username: 'creator',
-      full_name: 'Pinboard Creator',
-      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      email: 'creator@pinboard.dev',
-    };
+    if (!image_url || !image_url.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Pin image URL is required',
+      });
+    }
+
+    // Prevent XSS / malicious URIs
+    const cleanImage = image_url.trim();
+    if (cleanImage.toLowerCase().startsWith('javascript:')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid image URL provided',
+      });
+    }
+
+    let cleanDest = (destination_url || '').trim();
+    if (cleanDest && cleanDest.toLowerCase().startsWith('javascript:')) {
+      cleanDest = '';
+    }
+
+    const currentUserId = req.user.id || req.user._id;
+    const authorUser = req.user;
 
     let boardName = '';
     if (board_id) {
@@ -119,10 +141,10 @@ export const createPin = async (req, res, next) => {
     }
 
     const pin = await Pin.create({
-      title,
-      description: description || '',
-      image_url,
-      destination_url: destination_url || '',
+      title: title.trim().slice(0, 255),
+      description: (description || '').slice(0, 2000),
+      image_url: cleanImage,
+      destination_url: cleanDest,
       user_id: currentUserId,
       user: {
         id: authorUser.id || authorUser._id,
@@ -135,7 +157,7 @@ export const createPin = async (req, res, next) => {
       board_name: boardName,
       category_id: category_id ? Number(category_id) : null,
       category: categoryObj,
-      tags: Array.isArray(tags) ? tags : [],
+      tags: Array.isArray(tags) ? tags.map((t) => String(t).trim().slice(0, 50)).slice(0, 20) : [],
       type: type || 'image',
       is_private: Boolean(is_private),
     });
@@ -187,6 +209,13 @@ export const createPin = async (req, res, next) => {
 // @access  Private
 export const updatePin = async (req, res, next) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
     const pin = await Pin.findById(req.params.id);
     if (!pin) {
       return res.status(404).json({
@@ -195,8 +224,8 @@ export const updatePin = async (req, res, next) => {
       });
     }
 
-    const currentUserId = req.user?.id || req.user?._id;
-    const isAdmin = req.user?.role === 'admin' || req.user?.username === 'admin';
+    const currentUserId = req.user.id || req.user._id;
+    const isAdmin = req.user.role === 'admin' || req.user.username === 'admin';
 
     if (String(pin.user_id) !== String(currentUserId) && !isAdmin) {
       return res.status(403).json({
@@ -205,7 +234,55 @@ export const updatePin = async (req, res, next) => {
       });
     }
 
-    const updated = await Pin.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    // Whitelist only editable fields to prevent mass assignment of user_id, likes_count, rating_avg, etc.
+    const { title, description, image_url, destination_url, board_id, category_id, tags, is_private } = req.body;
+    const updates = {};
+
+    if (title !== undefined) {
+      if (!title || !title.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Title cannot be empty',
+        });
+      }
+      updates.title = title.trim().slice(0, 255);
+    }
+
+    if (description !== undefined) {
+      updates.description = String(description).slice(0, 2000);
+    }
+
+    if (image_url !== undefined) {
+      const cleanImg = String(image_url).trim();
+      if (!cleanImg.toLowerCase().startsWith('javascript:')) {
+        updates.image_url = cleanImg;
+      }
+    }
+
+    if (destination_url !== undefined) {
+      const cleanDest = String(destination_url).trim();
+      if (!cleanDest.toLowerCase().startsWith('javascript:')) {
+        updates.destination_url = cleanDest;
+      }
+    }
+
+    if (board_id !== undefined) {
+      updates.board_id = board_id ? Number(board_id) : null;
+    }
+
+    if (category_id !== undefined) {
+      updates.category_id = category_id ? Number(category_id) : null;
+    }
+
+    if (tags !== undefined && Array.isArray(tags)) {
+      updates.tags = tags.map((t) => String(t).trim().slice(0, 50)).slice(0, 20);
+    }
+
+    if (is_private !== undefined) {
+      updates.is_private = Boolean(is_private);
+    }
+
+    const updated = await Pin.findByIdAndUpdate(req.params.id, updates, { new: true });
 
     res.json({
       success: true,
@@ -256,6 +333,13 @@ export const deletePin = async (req, res, next) => {
 // @access  Private
 export const toggleLike = async (req, res, next) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required to like a pin',
+      });
+    }
+
     const pin = await Pin.findById(req.params.id);
     if (!pin) {
       return res.status(404).json({
@@ -264,7 +348,7 @@ export const toggleLike = async (req, res, next) => {
       });
     }
 
-    const userId = req.user?.id || req.user?._id || 2;
+    const userId = req.user.id || req.user._id;
     let likedBy = Array.isArray(pin.liked_by) ? [...pin.liked_by] : [];
     let likesCount = pin.likes_count || 0;
     const isAlreadyLiked = likedBy.some((uid) => String(uid) === String(userId));
@@ -305,13 +389,20 @@ export const toggleLike = async (req, res, next) => {
 // @access  Private
 export const ratePin = async (req, res, next) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required to rate a pin',
+      });
+    }
+
     const { score } = req.body;
     const numScore = Number(score);
 
-    if (!numScore || numScore < 1 || numScore > 5) {
+    if (!numScore || numScore < 1 || numScore > 5 || !Number.isInteger(numScore)) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide a valid rating score between 1 and 5',
+        message: 'Please provide a valid rating score integer between 1 and 5',
       });
     }
 
@@ -323,7 +414,7 @@ export const ratePin = async (req, res, next) => {
       });
     }
 
-    const userId = req.user?.id || req.user?._id || 2;
+    const userId = req.user.id || req.user._id;
     let ratings = Array.isArray(pin.ratings) ? [...pin.ratings] : [];
     const existingIndex = ratings.findIndex((r) => String(r.user_id) === String(userId));
 
@@ -380,13 +471,27 @@ export const getComments = async (req, res, next) => {
 // @access  Private
 export const addComment = async (req, res, next) => {
   try {
-    const { content, text, rating } = req.body;
-    const commentText = content || text;
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required to comment',
+      });
+    }
 
-    if (!commentText || !commentText.trim()) {
+    const { content, text, rating } = req.body;
+    const commentText = (content || text || '').trim();
+
+    if (!commentText) {
       return res.status(400).json({
         success: false,
         message: 'Comment content cannot be empty',
+      });
+    }
+
+    if (commentText.length > 2000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment cannot exceed 2000 characters',
       });
     }
 
@@ -398,13 +503,7 @@ export const addComment = async (req, res, next) => {
       });
     }
 
-    const authorUser = req.user || {
-      id: 2,
-      username: 'explorer',
-      full_name: 'Pinboard Explorer',
-      avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-      email: 'explorer@pinboard.dev',
-    };
+    const authorUser = req.user;
 
     const newComment = await Comment.create({
       pin_id: req.params.id,
@@ -520,9 +619,16 @@ export const deleteComment = async (req, res, next) => {
 // @access  Private
 export const reportPin = async (req, res, next) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required to report a pin',
+      });
+    }
+
     const { reason, details } = req.body;
 
-    if (!reason) {
+    if (!reason || !reason.trim()) {
       return res.status(400).json({
         success: false,
         message: 'Report reason is required',
@@ -537,11 +643,7 @@ export const reportPin = async (req, res, next) => {
       });
     }
 
-    const user = req.user || {
-      id: 2,
-      username: 'explorer',
-      email: 'explorer@pinboard.dev',
-    };
+    const user = req.user;
 
     const report = await Report.create({
       pin_id: req.params.id,

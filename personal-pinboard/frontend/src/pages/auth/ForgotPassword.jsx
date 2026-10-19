@@ -1,21 +1,35 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { IconPin, IconCheck, IconMail } from '@tabler/icons-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { IconPin, IconCheck, IconMail, IconAlertCircle, IconArrowRight } from '@tabler/icons-react';
 import ThemeToggle from '../../components/common/ThemeToggle';
+import { authService } from '../../services/authService';
 
 export default function ForgotPassword() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [devCode, setDevCode] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email) return;
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) return;
+
+    setError('');
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const res = await authService.forgotPassword(cleanEmail);
       setSubmitted(true);
-    }, 800);
+      if (res?.data?.dev_code) {
+        setDevCode(res.data.dev_code);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to dispatch reset code.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -39,10 +53,35 @@ export default function ForgotPassword() {
           </p>
         </div>
 
+        {error && (
+          <div className="mb-4 p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs font-semibold text-rose-700 dark:text-rose-300 flex items-center gap-2 text-left animate-in fade-in">
+            <IconAlertCircle size={16} className="shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
         {submitted ? (
-          <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2 text-left mb-6">
-            <IconCheck size={18} className="shrink-0 text-emerald-600" />
-            <span>Password reset link sent! Check your inbox for instructions.</span>
+          <div className="space-y-4 text-left">
+            <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+              <IconCheck size={18} className="shrink-0 text-emerald-600" />
+              <span>Password reset instructions have been generated for {email}.</span>
+            </div>
+
+            {devCode && (
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                <span className="font-bold">Development Reset Code: </span>
+                <span className="font-mono font-black text-sm bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700">{devCode}</span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => navigate(`/reset-password?email=${encodeURIComponent(email)}`)}
+              className="w-full h-11 rounded-full bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-xs hover:shadow-sm active:scale-[0.98] transition-all duration-150 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Enter Reset Code & Set Password</span>
+              <IconArrowRight size={16} />
+            </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 text-left">
@@ -71,7 +110,7 @@ export default function ForgotPassword() {
               {loading && (
                 <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               )}
-              <span>Send Reset Link</span>
+              <span>Send Reset Instructions</span>
             </button>
           </form>
         )}

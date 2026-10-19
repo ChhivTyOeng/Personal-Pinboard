@@ -1,35 +1,70 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { IconPin, IconCheck, IconLock, IconEye, IconEyeOff } from '@tabler/icons-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  IconPin,
+  IconCheck,
+  IconLock,
+  IconEye,
+  IconEyeOff,
+  IconMail,
+  IconKey,
+  IconAlertCircle,
+} from '@tabler/icons-react';
 import { toast } from '../../context/ToastContext';
 import ThemeToggle from '../../components/common/ThemeToggle';
+import { authService } from '../../services/authService';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const [email, setEmail] = useState(searchParams.get('email') || '');
+  const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setServerError('');
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanCode = code.trim();
+
+    if (!cleanEmail) {
+      setServerError('Please enter your email address');
+      return;
+    }
+    if (!cleanCode) {
+      setServerError('Please enter the 6-digit verification code sent to your email');
+      return;
+    }
     if (password.length < 6) {
-      toast.error('Password must be at least 6 characters.');
+      setServerError('New password must be at least 6 characters.');
       return;
     }
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match. Please re-enter.');
+      setServerError('Passwords do not match. Please re-enter.');
       return;
     }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await authService.resetPassword(cleanEmail, cleanCode, password);
       setSuccess(true);
       toast.success('Password updated successfully!');
-      setTimeout(() => navigate('/login'), 1500);
-    }, 600);
+      setTimeout(() => navigate('/login'), 2000);
+    } catch (err) {
+      setServerError(
+        err.response?.data?.message || err.message || 'Failed to update password. Please check your verification code.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -49,9 +84,16 @@ export default function ResetPassword() {
             New Password
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Create a secure password to protect your pinboard
+            Enter your reset code and choose a new password
           </p>
         </div>
+
+        {serverError && (
+          <div className="mb-4 p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs font-semibold text-rose-700 dark:text-rose-300 flex items-center gap-2 text-left animate-in fade-in">
+            <IconAlertCircle size={16} className="shrink-0" />
+            <span>{serverError}</span>
+          </div>
+        )}
 
         {success ? (
           <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2 text-left mb-6">
@@ -60,6 +102,41 @@ export default function ResetPassword() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 text-left">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Email address <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative flex items-center">
+                <IconMail size={16} className="absolute left-3.5 text-slate-400 pointer-events-none" />
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full h-10 pl-10 pr-3.5 rounded-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                6-Digit Verification Code <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative flex items-center">
+                <IconKey size={16} className="absolute left-3.5 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="e.g. 123456"
+                  required
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  className="w-full h-10 pl-10 pr-3.5 rounded-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 font-mono text-sm font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 New Password <span className="text-rose-500">*</span>
@@ -122,6 +199,13 @@ export default function ResetPassword() {
             </button>
           </form>
         )}
+
+        <p className="text-center text-xs text-slate-500 dark:text-slate-400 mt-6">
+          Need a new code?{' '}
+          <Link to="/forgot-password" className="text-brand-600 font-bold hover:underline">
+            Request reset code
+          </Link>
+        </p>
       </div>
     </div>
   );

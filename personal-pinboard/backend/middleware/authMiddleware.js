@@ -19,20 +19,9 @@ export const protect = async (req, res, next) => {
     const secret = process.env.JWT_SECRET || 'super_secret_pinboard_jwt_key_2026_rupp';
     let decoded;
 
-    // Handle mock tokens from frontend if present during transitions
-    if (token.startsWith('mock-jwt-token-') || token.startsWith('frontend-jwt-token-')) {
-      const mockId = token.replace('mock-jwt-token-', '').replace('frontend-jwt-token-', '');
-      const user = await User.findById(mockId);
-      if (user) {
-        req.user = user;
-        return next();
-      }
-    }
-
     try {
       decoded = jwt.verify(token, secret);
     } catch (e) {
-      // If token decoding fails, check if token was signed with fallback
       return res.status(401).json({
         success: false,
         message: 'Not authorized, invalid or expired token',
@@ -79,11 +68,6 @@ export const optionalProtect = async (req, res, next) => {
 
   try {
     const secret = process.env.JWT_SECRET || 'super_secret_pinboard_jwt_key_2026_rupp';
-    if (token.startsWith('mock-jwt-token-') || token.startsWith('frontend-jwt-token-')) {
-      const mockId = token.replace('mock-jwt-token-', '').replace('frontend-jwt-token-', '');
-      req.user = await User.findById(mockId);
-      return next();
-    }
     const decoded = jwt.verify(token, secret);
     req.user = await User.findById(decoded.id);
   } catch (e) {

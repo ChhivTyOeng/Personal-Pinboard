@@ -92,8 +92,12 @@ export default function Settings() {
     }
   };
 
-  const handleSavePassword = (e) => {
+  const handleSavePassword = async (e) => {
     e.preventDefault();
+    if (!currentPassword) {
+      toast.error('Current password is required.');
+      return;
+    }
     if (newPassword.length < 6) {
       toast.error('New password must be at least 6 characters long.');
       return;
@@ -103,15 +107,20 @@ export default function Settings() {
       return;
     }
     setSavingPassword(true);
-    setTimeout(() => {
-      setSavingPassword(false);
+    try {
+      await userService.changePassword({ currentPassword, newPassword });
       setPasswordSuccess(true);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       toast.success('Password updated successfully!');
       setTimeout(() => setPasswordSuccess(false), 3000);
-    }, 600);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to update password.';
+      toast.error(msg);
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   return (

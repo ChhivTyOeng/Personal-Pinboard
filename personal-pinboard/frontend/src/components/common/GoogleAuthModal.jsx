@@ -287,7 +287,7 @@ export default function GoogleAuthModal({
       }
 
       // Validated! Log the user in or register their account
-      const authedUser = await loginWithOtp(email, fullName);
+      const authedUser = await loginWithOtp(email, fullName, enteredCode);
       toast.success(
         mode === 'signup'
           ? `Welcome to Pinboard, ${authedUser.full_name}!`

@@ -96,6 +96,13 @@ export const getBoardById = async (req, res, next) => {
 // @access  Private
 export const createBoard = async (req, res, next) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required to create a board',
+      });
+    }
+
     const { name, description, cover_image_url, cover_image, is_private, is_secret } = req.body;
 
     if (!name || !name.trim()) {
@@ -105,11 +112,12 @@ export const createBoard = async (req, res, next) => {
       });
     }
 
-    const userId = req.user?.id || req.user?._id || 2;
+    const cleanName = name.trim().slice(0, 150);
+    const userId = req.user.id || req.user._id;
 
     const newBoard = await Board.create({
-      name: name.trim(),
-      description: description || '',
+      name: cleanName,
+      description: (description || '').slice(0, 1000),
       cover_image_url: cover_image_url || cover_image || '',
       preview_images: cover_image_url ? [cover_image_url] : [],
       user_id: userId,
@@ -130,6 +138,13 @@ export const createBoard = async (req, res, next) => {
 // @access  Private
 export const updateBoard = async (req, res, next) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
     const board = await Board.findById(req.params.id);
     if (!board) {
       return res.status(404).json({
@@ -138,8 +153,8 @@ export const updateBoard = async (req, res, next) => {
       });
     }
 
-    const currentUserId = req.user?.id || req.user?._id;
-    const isAdmin = req.user?.role === 'admin';
+    const currentUserId = req.user.id || req.user._id;
+    const isAdmin = req.user.role === 'admin';
 
     if (String(board.user_id) !== String(currentUserId) && !isAdmin) {
       return res.status(403).json({
@@ -148,7 +163,29 @@ export const updateBoard = async (req, res, next) => {
       });
     }
 
-    const updated = await Board.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { name, description, cover_image_url, is_private } = req.body;
+    const updates = {};
+
+    if (name !== undefined) {
+      if (!name || !name.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Board name cannot be empty',
+        });
+      }
+      updates.name = name.trim().slice(0, 150);
+    }
+    if (description !== undefined) {
+      updates.description = String(description).slice(0, 1000);
+    }
+    if (cover_image_url !== undefined) {
+      updates.cover_image_url = String(cover_image_url).trim();
+    }
+    if (is_private !== undefined) {
+      updates.is_private = Boolean(is_private);
+    }
+
+    const updated = await Board.findByIdAndUpdate(req.params.id, updates, { new: true });
 
     res.json({
       success: true,
@@ -164,6 +201,13 @@ export const updateBoard = async (req, res, next) => {
 // @access  Private
 export const deleteBoard = async (req, res, next) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
     const board = await Board.findById(req.params.id);
     if (!board) {
       return res.status(404).json({
@@ -172,8 +216,8 @@ export const deleteBoard = async (req, res, next) => {
       });
     }
 
-    const currentUserId = req.user?.id || req.user?._id;
-    const isAdmin = req.user?.role === 'admin';
+    const currentUserId = req.user.id || req.user._id;
+    const isAdmin = req.user.role === 'admin';
 
     if (String(board.user_id) !== String(currentUserId) && !isAdmin) {
       return res.status(403).json({
@@ -198,6 +242,13 @@ export const deleteBoard = async (req, res, next) => {
 // @access  Private
 export const savePinToBoard = async (req, res, next) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
     const { boardId } = req.params;
     const { pin_id } = req.body;
 
@@ -206,6 +257,16 @@ export const savePinToBoard = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Board not found',
+      });
+    }
+
+    const currentUserId = req.user.id || req.user._id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (String(board.user_id) !== String(currentUserId) && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to save pins to this board',
       });
     }
 
@@ -261,6 +322,13 @@ export const savePinToBoard = async (req, res, next) => {
 // @access  Private
 export const removePinFromBoard = async (req, res, next) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
     const { boardId, pinId } = req.params;
 
     const board = await Board.findById(boardId);
@@ -268,6 +336,16 @@ export const removePinFromBoard = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Board not found',
+      });
+    }
+
+    const currentUserId = req.user.id || req.user._id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (String(board.user_id) !== String(currentUserId) && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this board',
       });
     }
 

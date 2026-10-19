@@ -100,7 +100,32 @@ export const updateCategory = async (req, res, next) => {
       });
     }
 
-    const updated = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { name, description, image_url, type, members } = req.body;
+    const updates = {};
+
+    if (name !== undefined) {
+      if (!name || !name.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Category name cannot be empty',
+        });
+      }
+      updates.name = name.trim().slice(0, 100);
+    }
+    if (description !== undefined) {
+      updates.description = String(description).slice(0, 1000);
+    }
+    if (image_url !== undefined) {
+      updates.image_url = String(image_url).trim();
+    }
+    if (type !== undefined) {
+      updates.type = type;
+    }
+    if (members !== undefined && Array.isArray(members)) {
+      updates.members = members;
+    }
+
+    const updated = await Category.findByIdAndUpdate(req.params.id, updates, { new: true });
 
     res.json({
       success: true,

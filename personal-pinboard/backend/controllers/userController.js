@@ -35,6 +35,10 @@ export const getUserProfile = async (req, res, next) => {
 
     const userObj = user.toObject ? user.toObject() : { ...user };
     delete userObj.password;
+    delete userObj.reset_password_token;
+    delete userObj.reset_password_expires;
+    delete userObj.otp_code_hash;
+    delete userObj.otp_expires;
 
     res.json({
       success: true,
@@ -56,20 +60,72 @@ export const getUserProfile = async (req, res, next) => {
 // @access  Private
 export const updateProfile = async (req, res, next) => {
   try {
-    const currentUserId = req.user?.id || req.user?._id || 2;
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    const currentUserId = req.user.id || req.user._id;
     const { full_name, bio, avatar_url, username, email } = req.body;
 
     const updates = {};
-    if (full_name !== undefined) updates.full_name = full_name;
-    if (bio !== undefined) updates.bio = bio;
-    if (avatar_url !== undefined) updates.avatar_url = avatar_url;
-    if (username !== undefined) updates.username = username;
-    if (email !== undefined) updates.email = email.toLowerCase().trim();
+    if (full_name !== undefined) {
+      updates.full_name = String(full_name).trim();
+    }
+    if (bio !== undefined) {
+      updates.bio = String(bio).slice(0, 500);
+    }
+    if (avatar_url !== undefined) {
+      updates.avatar_url = String(avatar_url).trim();
+    }
+
+    if (username !== undefined) {
+      const cleanUsername = String(username).trim().replace(/[^a-zA-Z0-9_.-]/g, '_');
+      if (cleanUsername.length < 3) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username must be at least 3 characters',
+        });
+      }
+      const existingUser = await User.findOne({ username: cleanUsername });
+      if (existingUser && String(existingUser.id) !== String(currentUserId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username is already taken by another account',
+        });
+      }
+      updates.username = cleanUsername;
+    }
+
+    if (email !== undefined) {
+      const cleanEmail = String(email).toLowerCase().trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(cleanEmail)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid email address',
+        });
+      }
+      const existingEmail = await User.findOne({ email: cleanEmail });
+      if (existingEmail && String(existingEmail.id) !== String(currentUserId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email address is already in use by another account',
+        });
+      }
+      updates.email = cleanEmail;
+    }
 
     const updatedUser = await User.findByIdAndUpdate(currentUserId, updates, { new: true });
 
     const userObj = updatedUser.toObject ? updatedUser.toObject() : { ...updatedUser };
     delete userObj.password;
+    delete userObj.reset_password_token;
+    delete userObj.reset_password_expires;
+    delete userObj.otp_code_hash;
+    delete userObj.otp_expires;
 
     res.json({
       success: true,
@@ -85,8 +141,22 @@ export const updateProfile = async (req, res, next) => {
 // @access  Private
 export const changePassword = async (req, res, next) => {
   try {
-    const currentUserId = req.user?.id || req.user?._id;
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    const currentUserId = req.user.id || req.user._id;
     const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is required',
+      });
+    }
 
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({
@@ -103,17 +173,21 @@ export const changePassword = async (req, res, next) => {
       });
     }
 
-    if (currentPassword && user.password && user.password.startsWith('$2')) {
-      const isMatch = await bcrypt.compare(currentPassword, user.password);
-      if (!isMatch) {
-        return res.status(400).json({
-          success: false,
-          message: 'Incorrect current password',
-        });
-      }
+    let isMatch = false;
+    if (user.password && user.password.startsWith('$2')) {
+      isMatch = await bcrypt.compare(currentPassword, user.password);
+    } else if (user.password) {
+      isMatch = currentPassword === user.password;
     }
 
-    const hashedPassword = bcrypt.hashSync(newPassword, 10);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: 'Incorrect current password',
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
     await User.findByIdAndUpdate(currentUserId, { password: hashedPassword });
 
     res.json({

@@ -54,6 +54,11 @@ export const userService = {
     return updated || data;
   },
 
+  async changePassword({ currentPassword, newPassword }) {
+    const response = await api.put('/users/password', { currentPassword, newPassword });
+    return response?.data;
+  },
+
   async getAdminStats() {
     try {
       const response = await api.get('/admin/stats');

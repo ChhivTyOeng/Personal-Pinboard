@@ -54,10 +54,14 @@ export const getUsers = async (req, res, next) => {
     const { search, role, status, page = 1, limit = 50 } = req.query;
     let users = await User.find({ search, role, status });
 
-    // Remove passwords from response
+    // Remove passwords and sensitive reset tokens from response
     const sanitizedUsers = users.map((u) => {
       const userObj = u.toObject ? u.toObject() : { ...u };
       delete userObj.password;
+      delete userObj.reset_password_token;
+      delete userObj.reset_password_expires;
+      delete userObj.otp_code_hash;
+      delete userObj.otp_expires;
       return userObj;
     });
 
@@ -211,12 +215,48 @@ export const createUser = async (req, res, next) => {
       });
     }
 
+    const cleanEmail = String(email).toLowerCase().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email address',
+      });
+    }
+
+    const cleanUsername = String(username).trim().replace(/[^a-zA-Z0-9_.-]/g, '_');
+    if (cleanUsername.length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username must be at least 3 characters',
+      });
+    }
+
+    const existingEmail = await User.findOne({ email: cleanEmail });
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'An account with this email already exists',
+      });
+    }
+
+    const existingUsername = await User.findOne({ username: cleanUsername });
+    if (existingUsername) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username is already taken',
+      });
+    }
+
+    const userPassword = password && String(password).length >= 6 ? String(password) : 'password123';
+    const userRole = role === 'admin' ? 'admin' : 'user';
+
     const newUser = await User.create({
-      username,
-      email,
-      password: password || 'password123',
-      full_name: full_name || username,
-      role: role || 'user',
+      username: cleanUsername,
+      email: cleanEmail,
+      password: userPassword,
+      full_name: (full_name || cleanUsername).trim(),
+      role: userRole,
     });
 
     await AuditLog.create({
@@ -227,8 +267,12 @@ export const createUser = async (req, res, next) => {
       details: `Created new user ${newUser.username} with role ${newUser.role}`,
     });
 
-    const userObj = { ...newUser };
+    const userObj = newUser.toObject ? newUser.toObject() : { ...newUser };
     delete userObj.password;
+    delete userObj.reset_password_token;
+    delete userObj.reset_password_expires;
+    delete userObj.otp_code_hash;
+    delete userObj.otp_expires;
 
     res.status(201).json({
       success: true,

@@ -124,9 +124,9 @@ export const AuthProvider = ({ children }) => {
     return authedUser;
   };
 
-  const loginWithOtp = async (email, fullName = '') => {
+  const loginWithOtp = async (email, fullName = '', code = '') => {
     localStorage.removeItem('pinboard_logged_out');
-    const { user: authedUser, token: authToken } = await authService.loginWithOtp(email, fullName);
+    const { user: authedUser, token: authToken } = await authService.loginWithOtp(email, fullName, code);
     setUser(authedUser);
     setToken(authToken);
     localStorage.setItem('user', JSON.stringify(authedUser));
@@ -134,12 +134,21 @@ export const AuthProvider = ({ children }) => {
     return authedUser;
   };
 
-  const loginAs = (role) => {
+  const loginAs = async (role) => {
     localStorage.removeItem('pinboard_logged_out');
-    const targetUser = role === 'admin' ? MOCK_USERS[0] : MOCK_USERS[1];
-    setUser(targetUser);
-    setToken('mock-jwt-token-' + targetUser.id);
-    return targetUser;
+    const email = role === 'admin' ? 'admin@pinboard.dev' : 'user@pinboard.dev';
+    try {
+      const data = await authService.login({ email, password: 'password123' });
+      setUser(data.user);
+      setToken(data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('token', data.token);
+      return data.user;
+    } catch (e) {
+      const targetUser = role === 'admin' ? MOCK_USERS[0] : MOCK_USERS[1];
+      setUser(targetUser);
+      return targetUser;
+    }
   };
 
   return (
