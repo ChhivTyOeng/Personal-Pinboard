@@ -8,12 +8,13 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Dependencies
-node_modules
-dist
-dist-ssr
+node_modules/
+dist/
+dist-ssr/
 *.local
 
 # Editor directories and files
+*.code-workspace
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -26,10 +27,15 @@ dist-ssr
 
 # Environment variables
 .env
+.env.*
+*.env
 .env.production
 .env.development
 .env.local
 .env.*.local
+*.pem
+*.key
 
 # Preserve .env.example
 !.env.example
+!*.env.example

@@ -1,5 +1,83 @@
+# ==============================================================================
+# Git Ignore Configuration - Personal Pinboard Full Stack Project
+# ==============================================================================
+
+# Dependencies
 node_modules/
+.pnp
+.pnp.js
+
+# Environment Variables & Secrets (CRITICAL)
 .env
 .env.*
+*.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+*.cert
+*.crt
+# Allow example environment templates
 !.env.example
+!*.env.example
+
+# Production & Build Outputs
+dist/
+dist-ssr/
+build/
+out/
+.cache/
+
+# Logs & Debugging
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime & Local Database Storage
+*.sqlite
+*.sqlite3
+*.db
+backend/data/*.json
+personal-pinboard/backend/data/*.json
+data/*.json
+pinboard_db.json
+
+# User Uploaded Media (Preserve directory structure via .gitkeep)
+backend/uploads/pins/*
+!backend/uploads/pins/.gitkeep
+backend/uploads/avatars/*
+!backend/uploads/avatars/.gitkeep
+personal-pinboard/backend/uploads/pins/*
+!personal-pinboard/backend/uploads/pins/.gitkeep
+personal-pinboard/backend/uploads/avatars/*
+!personal-pinboard/backend/uploads/avatars/.gitkeep
+uploads/pins/*
+!uploads/pins/.gitkeep
+uploads/avatars/*
+!uploads/avatars/.gitkeep
+
+# Editor & Workspace Files
 *.code-workspace
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.history/
+
+# Operating System Junk
+.DS_Store
+.DS_Store?
+._*
+[Tt]humbs.db
+[Ee]hthumbs.db
+[Dd]esktop.ini
