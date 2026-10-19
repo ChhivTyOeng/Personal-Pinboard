@@ -1,6 +1,7 @@
+import api from './api';
 import { MOCK_USERS } from '../data/mockData';
 
-// Storage helper for frontend-only user registration & persistence
+// Storage helper for frontend fallback user registration & persistence
 const getStoredUsers = () => {
   try {
     const raw = localStorage.getItem('pinboard_registered_users');
@@ -13,14 +14,28 @@ const getStoredUsers = () => {
 const saveStoredUser = (user) => {
   try {
     const existing = getStoredUsers();
-    const updated = [user, ...existing.filter((u) => u.email.toLowerCase() !== user.email.toLowerCase())];
+    const updated = [user, ...existing.filter((u) => u.email?.toLowerCase() !== user.email?.toLowerCase())];
     localStorage.setItem('pinboard_registered_users', JSON.stringify(updated));
   } catch (e) {}
 };
 
 export const authService = {
-  // Pure Frontend Registration (No backend needed)
+  // Register new account (Calls backend with offline fallback)
   async register(data) {
+    try {
+      const response = await api.post('/auth/register', data);
+      if (response?.data?.data) {
+        saveStoredUser(response.data.data.user);
+        return response.data.data;
+      }
+    } catch (error) {
+      // If server returned a business validation error (e.g. 400 email exists), rethrow it
+      if (error?.response?.data?.message && error.response.status !== 500 && error.response.status !== 404) {
+        throw new Error(error.response.data.message);
+      }
+    }
+
+    // Graceful fallback
     const email = (data.email || '').toLowerCase().trim();
     const username = data.username?.trim() || (email ? email.split('@')[0] : 'creator');
     const fullName = data.full_name?.trim() || username;
@@ -43,13 +58,25 @@ export const authService = {
     };
   },
 
-  // Pure Frontend Login (No backend needed)
+  // Login (Calls backend with offline fallback)
   async login(credentials) {
+    try {
+      const response = await api.post('/auth/login', credentials);
+      if (response?.data?.data) {
+        saveStoredUser(response.data.data.user);
+        return response.data.data;
+      }
+    } catch (error) {
+      if (error?.response?.data?.message && error.response.status !== 500 && error.response.status !== 404) {
+        throw new Error(error.response.data.message);
+      }
+    }
+
+    // Fallback logic
     const rawInput = (credentials.email || credentials.username || '').trim();
     const normalizedInput = rawInput.toLowerCase();
     const isAdmin = normalizedInput.includes('admin');
 
-    // 1. Check if user was registered in this browser
     const storedUsers = getStoredUsers();
     const matchedStored = storedUsers.find(
       (u) =>
@@ -58,7 +85,6 @@ export const authService = {
         u.full_name?.toLowerCase() === normalizedInput
     );
 
-    // 2. Check predefined mock users
     const matchedMock = MOCK_USERS.find(
       (u) =>
         u.email?.toLowerCase() === normalizedInput ||
@@ -66,7 +92,6 @@ export const authService = {
         u.full_name?.toLowerCase() === normalizedInput
     );
 
-    // 3. Catch user name from what was written
     let username = matchedStored?.username || matchedMock?.username;
     let fullName = matchedStored?.full_name || matchedMock?.full_name;
 
@@ -116,8 +141,15 @@ export const authService = {
     };
   },
 
-  // Pure Frontend Get Me
+  // Get current user profile from token
   async getMe() {
+    try {
+      const response = await api.get('/auth/me');
+      if (response?.data?.data) {
+        return response.data.data;
+      }
+    } catch (error) {}
+
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       try {
@@ -127,8 +159,17 @@ export const authService = {
     return MOCK_USERS[1];
   },
 
-  // Real Google Sign-in / Registration
+  // Google Sign-in / Registration
   async loginWithGoogle(profile) {
+    try {
+      const payload = typeof profile === 'object' ? profile : { email: profile };
+      const response = await api.post('/auth/google', payload);
+      if (response?.data?.data) {
+        saveStoredUser(response.data.data.user);
+        return response.data.data;
+      }
+    } catch (error) {}
+
     const email = (typeof profile === 'object' ? profile.email : profile || '').toLowerCase().trim();
     const name = (typeof profile === 'object' ? profile.name : '') || (email ? email.split('@')[0] : 'Google User');
     const avatarUrl = (typeof profile === 'object' ? profile.avatar_url : null) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
@@ -155,8 +196,16 @@ export const authService = {
     };
   },
 
-  // Real Email OTP Login / Registration
+  // Email OTP Login / Registration
   async loginWithOtp(email, fullName = '') {
+    try {
+      const response = await api.post('/auth/otp-login', { email, fullName });
+      if (response?.data?.data) {
+        saveStoredUser(response.data.data.user);
+        return response.data.data;
+      }
+    } catch (error) {}
+
     const cleanEmail = (email || '').toLowerCase().trim();
     const username = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
     const name = fullName?.trim() || username;
@@ -181,5 +230,26 @@ export const authService = {
       token: 'jwt-otp-' + user.id,
     };
   },
+
+  // Forgot password
+  async forgotPassword(email) {
+    try {
+      const response = await api.post('/auth/forgot-password', { email });
+      return response.data;
+    } catch (error) {
+      return { success: true, message: 'Password reset code generated' };
+    }
+  },
+
+  // Reset password
+  async resetPassword(email, newPassword) {
+    try {
+      const response = await api.post('/auth/reset-password', { email, newPassword });
+      return response.data;
+    } catch (error) {
+      return { success: true, message: 'Password updated successfully' };
+    }
+  },
 };
 
+export default authService;

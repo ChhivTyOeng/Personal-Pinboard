@@ -1,0 +1,13 @@
+{
+  "name": "personal-pinboard-root",
+  "version": "1.0.0",
+  "description": "Full-Stack Personal Pinboard Application (Frontend + Backend)",
+  "private": true,
+  "scripts": {
+    "start": "npm start --prefix backend",
+    "backend": "npm start --prefix backend",
+    "frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend"
+  }
+}
